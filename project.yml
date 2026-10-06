@@ -1,0 +1,64 @@
+name: RMB
+options:
+  bundleIdPrefix: dev.abrar
+  createIntermediateGroups: true
+  deploymentTarget:
+    macOS: "13.0"
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    MACOSX_DEPLOYMENT_TARGET: "13.0"
+    CODE_SIGN_STYLE: Manual
+    CODE_SIGN_IDENTITY: "Developer ID Application: Abrar Zharifan Syah (JSYLVAZ935)"
+    ENABLE_HARDENED_RUNTIME: YES
+    CURRENT_PROJECT_VERSION: 1
+    MARKETING_VERSION: 1.0.0
+targets:
+  RMBKit:
+    type: framework
+    platform: macOS
+    sources:
+      - Sources/Core
+      - Sources/Input
+      - Sources/Settings
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.abrar.RMBKit
+        GENERATE_INFOPLIST_FILE: YES
+  RMB:
+    type: application
+    platform: macOS
+    sources:
+      - Sources/App
+      - Sources/Views
+    dependencies:
+      - target: RMBKit
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.abrar.RMB
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: RMB
+        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.utilities
+  RMBKitTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - Tests/RMBKitTests
+    dependencies:
+      - target: RMBKit
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.abrar.RMBKitTests
+        GENERATE_INFOPLIST_FILE: YES
+schemes:
+  RMB:
+    build:
+      targets:
+        RMB: all
+        RMBKitTests: [test]
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - RMBKitTests
