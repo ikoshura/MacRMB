@@ -54,6 +54,19 @@ targets:
   MacRMB:
     type: application
     platform: macOS
+    # Xcode's generated Info.plist only honors whitelisted INFOPLIST_KEY_*
+    # entries — custom keys (SUFeedURL/SUPublicEDKey) need an explicit plist,
+    # which xcodegen generates with the standard boilerplate merged in.
+    info:
+      path: Sources/App/Info.plist
+      properties:
+        CFBundleDisplayName: MacRMB
+        LSApplicationCategoryType: public.app-category.utilities
+        SUFeedURL: "https://github.com/ikoshura/MacRMB/releases/latest/download/appcast.xml"
+        SUPublicEDKey: "+jvAD296kzdwj7OZyXHd9M12SYmnOaBcrrXQB+Hg3ec="
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
+        LSMinimumSystemVersion: "$(MACOSX_DEPLOYMENT_TARGET)"
     sources:
       - Sources/App
       - Sources/Views
@@ -66,11 +79,6 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: dev.abrar.MacRMB
-        GENERATE_INFOPLIST_FILE: YES
-        INFOPLIST_KEY_CFBundleDisplayName: MacRMB
-        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.utilities
-        INFOPLIST_KEY_SUPublicEDKey: "+jvAD296kzdwj7OZyXHd9M12SYmnOaBcrrXQB+Hg3ec="
-        INFOPLIST_KEY_SUFeedURL: "https://github.com/ikoshura/MacRMB/releases/latest/download/appcast.xml"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         SWIFT_OBJC_BRIDGING_HEADER: "Sources/App/MacRMB-Bridging-Header.h"
         HEADER_SEARCH_PATHS:
