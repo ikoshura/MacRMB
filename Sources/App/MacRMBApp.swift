@@ -6,12 +6,14 @@ import SwiftUI
 struct MacRMBApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var model = AppModel.shared
+    @StateObject private var updater = AppUpdater.shared
     @State private var pane: Pane = .status
 
     var body: some Scene {
         Window("MacRMB", id: "main") {
             RootView(pane: $pane)
                 .environmentObject(model)
+                .environmentObject(updater)
                 .frame(minWidth: 700, minHeight: 480)
         }
         .defaultSize(width: 880, height: 640)
@@ -29,6 +31,12 @@ struct MacRMBApp: App {
     private var menus: some Commands {
         CommandGroup(replacing: .newItem) {}
 
+        CommandGroup(after: .appInfo) {
+            Button("Check for Updates…") {
+                updater.checkForUpdates()
+            }
+        }
+
         CommandGroup(after: .sidebar) {
             Button("Status") { pane = .status }
                 .keyboardShortcut("1", modifiers: .command)
@@ -36,6 +44,8 @@ struct MacRMBApp: App {
                 .keyboardShortcut("2", modifiers: .command)
             Button("Bindings") { pane = .bindings }
                 .keyboardShortcut("3", modifiers: .command)
+            Button("About") { pane = .about }
+                .keyboardShortcut("4", modifiers: .command)
 
             Divider()
 

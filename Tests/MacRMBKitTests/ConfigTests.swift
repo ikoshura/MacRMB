@@ -16,6 +16,7 @@ final class ConfigTests: XCTestCase {
         XCTAssertTrue(config.autoFocus)
         XCTAssertTrue(config.bindMouseButtons)
         XCTAssertFalse(config.persistentKeyPress)
+        XCTAssertTrue(config.checkForUpdatesAutomatically)
         XCTAssertEqual(config.directions, .ijkl)
         XCTAssertEqual(config.bindings, [:])
     }

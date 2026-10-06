@@ -4,6 +4,10 @@ options:
   createIntermediateGroups: true
   deploymentTarget:
     macOS: "13.0"
+packages:
+  Sparkle:
+    url: https://github.com/sparkle-project/Sparkle
+    version: 2.7.0
 settings:
   base:
     SWIFT_VERSION: "5.0"
@@ -52,12 +56,16 @@ targets:
     dependencies:
       - target: MacRMBKit
       - target: RMBCore
+      - package: Sparkle
+        product: Sparkle
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: dev.abrar.MacRMB
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_CFBundleDisplayName: MacRMB
         INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.utilities
+        INFOPLIST_KEY_SUPublicEDKey: "+jvAD296kzdwj7OZyXHd9M12SYmnOaBcrrXQB+Hg3ec="
+        INFOPLIST_KEY_SUFeedURL: "https://example.com/macrmb/appcast.xml"
         SWIFT_OBJC_BRIDGING_HEADER: "Sources/App/MacRMB-Bridging-Header.h"
         HEADER_SEARCH_PATHS:
           - "$(inherited)"

@@ -1,7 +1,9 @@
 import SwiftUI
 
-/// Status-row building blocks adapted from NotProton's Status view design
-/// (tone dot + headline/value + trailing actions inside grouped forms).
+/// Status-row building blocks adapted from NotProton's Status view design:
+/// unindented headline title on line one; line two carries the value with
+/// the tone dot at its left, then the detail, then trailing actions — all
+/// action buttons use the default size (same as Detect).
 enum StatusTone {
     case ok, info, warning, bad, neutral
 
@@ -43,43 +45,46 @@ struct StatusRow: View {
     var action: StatusAction?
 
     var body: some View {
-        HStack(alignment: .center, spacing: 0) {
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                if let tone {
-                    Image(systemName: tone.symbol)
-                        .font(.system(size: 8))
-                        .foregroundStyle(tone.color)
-                        .frame(width: 10)
-                        .accessibilityHidden(true)
-                } else {
-                    Color.clear.frame(width: 10, height: 1)
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title)
+                .font(.headline)
+
+            HStack(alignment: .firstTextBaseline, spacing: 0) {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    if let tone {
+                        Image(systemName: tone.symbol)
+                            .font(.system(size: 8))
+                            .foregroundStyle(tone.color)
+                            .frame(width: 10)
+                            .accessibilityHidden(true)
+                    } else {
+                        Color.clear.frame(width: 10, height: 1)
+                    }
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        if let value {
+                            Text(value)
+                                .foregroundStyle(.secondary)
+                        }
+                        if let detail {
+                            Text(detail)
+                                .font(.callout)
+                                .foregroundStyle(.tertiary)
+                                .textSelection(.enabled)
+                        }
+                    }
                 }
 
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(title)
-                        .font(.headline)
-                    if let value {
-                        Text(value)
-                            .foregroundStyle(.secondary)
-                    }
-                    if let detail {
-                        Text(detail)
-                            .font(.callout)
-                            .foregroundStyle(.tertiary)
-                            .textSelection(.enabled)
-                    }
+                if secondaryAction != nil || action != nil {
+                    Spacer(minLength: 12)
                 }
-            }
-
-            if secondaryAction != nil || action != nil {
-                Spacer(minLength: 12)
-            }
-            if let secondaryAction {
-                button(secondaryAction)
-                    .padding(.trailing, 8)
-            }
-            if let action {
-                button(action)
+                if let secondaryAction {
+                    button(secondaryAction)
+                        .padding(.trailing, 8)
+                }
+                if let action {
+                    button(action)
+                }
             }
         }
         .accessibilityElement(children: .combine)
@@ -92,10 +97,8 @@ struct StatusRow: View {
             if action.isProminent {
                 Button(action.label, action: action.perform)
                     .buttonStyle(.borderedProminent)
-                    .controlSize(.small)
             } else {
                 Button(action.label, action: action.perform)
-                    .controlSize(.small)
             }
         }
         .disabled(!action.isEnabled)

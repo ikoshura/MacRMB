@@ -56,6 +56,8 @@ public struct Config: Codable, Equatable {
     public var autoFocus: Bool
     public var bindMouseButtons: Bool
     public var persistentKeyPress: Bool
+    /// Check for app updates automatically (Sparkle).
+    public var checkForUpdatesAutomatically: Bool
 
     // Input mapping (CGKeyCode values).
     public var directions: DirectionKeys
@@ -74,6 +76,7 @@ public struct Config: Codable, Equatable {
         autoFocus: Bool = true,
         bindMouseButtons: Bool = true,
         persistentKeyPress: Bool = false,
+        checkForUpdatesAutomatically: Bool = true,
         directions: DirectionKeys = .ijkl,
         bindings: [Int: UInt16] = [:]
     ) {
@@ -88,6 +91,7 @@ public struct Config: Codable, Equatable {
         self.autoFocus = autoFocus
         self.bindMouseButtons = bindMouseButtons
         self.persistentKeyPress = persistentKeyPress
+        self.checkForUpdatesAutomatically = checkForUpdatesAutomatically
         self.directions = directions
         self.bindings = bindings
     }
@@ -95,7 +99,8 @@ public struct Config: Codable, Equatable {
     private enum CodingKeys: String, CodingKey {
         case version, targetName, sensitivity, deadzone, range, threshold
         case stickOffsetX, stickOffsetY, hideCursor, autoFocus
-        case bindMouseButtons, persistentKeyPress, directions, bindings
+        case bindMouseButtons, persistentKeyPress, checkForUpdatesAutomatically
+        case directions, bindings
     }
 
     /// Lenient decoding: unknown or missing fields fall back to defaults so
@@ -115,6 +120,7 @@ public struct Config: Codable, Equatable {
         autoFocus = try c.decodeIfPresent(Bool.self, forKey: .autoFocus) ?? autoFocus
         bindMouseButtons = try c.decodeIfPresent(Bool.self, forKey: .bindMouseButtons) ?? bindMouseButtons
         persistentKeyPress = try c.decodeIfPresent(Bool.self, forKey: .persistentKeyPress) ?? persistentKeyPress
+        checkForUpdatesAutomatically = try c.decodeIfPresent(Bool.self, forKey: .checkForUpdatesAutomatically) ?? checkForUpdatesAutomatically
         directions = try c.decodeIfPresent(DirectionKeys.self, forKey: .directions) ?? directions
         bindings = try c.decodeIfPresent([Int: UInt16].self, forKey: .bindings) ?? bindings
     }

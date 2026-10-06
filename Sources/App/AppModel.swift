@@ -134,6 +134,7 @@ final class AppModel: ObservableObject {
     // MARK: - Config → engine
 
     func applyConfig() {
+        AppUpdater.shared.applyAutomaticChecks(config.checkForUpdatesAutomatically)
         var c = RmbEngineConfig()
         let d = config.directions
         c.stick_keys = (Int32(d.left), Int32(d.right), Int32(d.up), Int32(d.down))
