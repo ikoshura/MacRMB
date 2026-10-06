@@ -1,17 +1,32 @@
+<div align="center">
+
+<img width="128" height="128" alt="MacRMB app icon" src="https://github.com/user-attachments/assets/1cd0d7af-f824-430e-9178-772ee3af7561" />
+
 # MacRMB
 
-Mouse panning and mouse button binding for Switch emulators on macOS. It wraps the [IamSanjid/RMB](https://github.com/IamSanjid/RMB) C++ engine with a native Swift settings app.
+**Mouse panning and mouse button binding for Switch emulators on macOS.**
 
-<img width="2160" height="1680" alt="CleanShot 2026-10-07 at 01 46 52@2x" src="https://github.com/user-attachments/assets/fe625d79-3c05-4d05-8ed8-f5769ea8351a" />
+Wraps the [IamSanjid/RMB](https://github.com/IamSanjid/RMB) C++ engine with a native Swift settings app.
 
+[Features](#features) · [Requirements](#requirements) · [Build](#build) · [Setup](#first-time-setup) · [Configuration](#configuration) · [Architecture](#architecture)
 
-The panning logic is upstream's: a 1 ms cursor poll thread, mouse smoothing derived from yuzu, radial deadzone math, and keyboard simulation through a Native abstraction. The Swift side only provides the settings UI, the ⌥⌘P hotkey, and the configurable pin position.
+<br>
+
+<img width="880" alt="MacRMB screenshot" src="https://github.com/user-attachments/assets/74d3c71c-1b7c-4af5-8be6-a792100c2b4d" />
+
+<sub>Sidebar interface with Status, Panning, and Bindings panes</sub>
+
+</div>
+
+<br>
+
+The panning logic is upstream's, including a 1 ms cursor poll thread, mouse smoothing derived from yuzu, radial deadzone math, and keyboard simulation through a Native abstraction. The Swift side only provides the settings UI, the ⌥⌘P hotkey, and the configurable pin position.
 
 ## Features
 
-- Upstream RMB C++ engine in `Vendor/RMB/` (about 2.2k lines): `Mouse` smoothing, `NpadController` deadzone math, `KeyboardManager` queues, and `Native` key simulation, running on its own 1 ms worker thread
+- Upstream RMB C++ engine in `Vendor/RMB/` (about 2.2k lines) covering `Mouse` smoothing, `NpadController` deadzone math, `KeyboardManager` queues, and `Native` key simulation, running on its own 1 ms worker thread
 - ⌥⌘P global hotkey (Carbon, so it doesn't take focus from the game)
-- Upstream analog parameters: sensitivity, radial deadzone, range, threshold, and axis offsets, with the same values and meaning as the original
+- Upstream analog parameters (sensitivity, radial deadzone, range, threshold, and axis offsets) with the same values and meaning as the original
 - Cursor auto-hide using the same `SetsCursorInBackground` technique as upstream and the Raycast cursor-toggle extension. The cursor hides when panning starts, is re-applied every 2.5 s while panning or idle over the target, and is restored on stop, quit, or crash
 - Mouse button to key bindings (left, right, middle), useful for ZL, ZR, A, and B
 - Target tracking by window title or app name, with a Detect button
@@ -23,7 +38,7 @@ The panning logic is upstream's: a 1 ms cursor poll thread, mouse smoothing deri
 
 - macOS 13.0 or later (developed and tested on macOS 27)
 - An emulator with keyboard input mapping (Ryujinx, Ryujinx forks, etc.)
-- Permissions: Accessibility, Input Monitoring, and Allow Events to Your Mac (Post-Event). The engine requests all three on first launch
+- Accessibility, Input Monitoring, and Allow Events to Your Mac (Post-Event) permissions. The engine requests all three on first launch
 
 ## Build
 
@@ -36,7 +51,7 @@ xcodebuild -project RMB.xcodeproj -scheme RMB -configuration Debug \
 open build/Build/Products/Debug/RMB.app
 ```
 
-Self-test for the cursor-hide path (exit code 0 means it works on your OS):
+You can run a self-test for the cursor-hide path. Exit code 0 means it works on your OS.
 
 ```sh
 build/Build/Products/Debug/RMB.app/Contents/MacOS/RMB --check-cursor
@@ -51,7 +66,7 @@ build/Build/Products/Debug/RMB.app/Contents/MacOS/RMB --check-cursor
 
 ## Configuration
 
-Stored as JSON in `~/Library/Application Support/RMB/config.json`:
+The config is stored as JSON in `~/Library/Application Support/RMB/config.json`.
 
 ```jsonc
 {
@@ -104,7 +119,7 @@ Sources/
 Tests/RMBKitTests/     unit tests (config round-trips, migrations, focus matching, anchors)
 ```
 
-Three targets: `RMBCore` (C++20 static library with the vendored engine), `RMBKit` (Swift framework, testable without the UI), and `RMB` (the app).
+Three targets make up the project. `RMBCore` is a C++20 static library with the vendored engine, `RMBKit` is a Swift framework that is testable without the UI, and `RMB` is the app.
 
 ## Notes and limitations
 
@@ -115,9 +130,9 @@ Three targets: `RMBCore` (C++20 static library with the vendored engine), `RMBKi
 
 ## Credits
 
-- [IamSanjid/RMB](https://github.com/IamSanjid/RMB): the original C++ engine, vendored and driven from Swift. It has no license, so it is fine for personal use but should not be redistributed without the author's permission. Consider asking them to add a license.
-- [Dhaiwat10/raycast-mouse-cursor-toggle](https://github.com/Dhaiwat10/raycast-mouse-cursor-toggle): reference for the background cursor-hide technique (MIT)
-- [cameron314/concurrentqueue](https://github.com/cameron314/concurrentqueue): lock-free queue used by the engine (MIT)
+- [IamSanjid/RMB](https://github.com/IamSanjid/RMB) is the original C++ engine, vendored and driven from Swift.
+- [Dhaiwat10/raycast-mouse-cursor-toggle](https://github.com/Dhaiwat10/raycast-mouse-cursor-toggle) is the reference for the background cursor-hide technique (MIT)
+- [cameron314/concurrentqueue](https://github.com/cameron314/concurrentqueue) is the lock-free queue used by the engine (MIT)
 
 ## License
 
