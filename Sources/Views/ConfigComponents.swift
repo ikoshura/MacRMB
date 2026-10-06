@@ -44,7 +44,7 @@ struct BindingRow: View {
                 }
             }
             .labelsHidden()
-            .frame(width: 150)
+            .frame(width: 160, alignment: .trailing)
         }
     }
 }
@@ -64,7 +64,7 @@ struct KeyPicker: View {
                 }
             }
             .labelsHidden()
-            .frame(width: 140)
+            .frame(width: 160, alignment: .trailing)
         }
     }
 }
