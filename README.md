@@ -2,6 +2,9 @@
 
 Mouse panning and mouse button binding for Switch emulators on macOS. It wraps the [IamSanjid/RMB](https://github.com/IamSanjid/RMB) C++ engine with a native Swift settings app.
 
+<img width="2160" height="1680" alt="CleanShot 2026-10-07 at 01 46 52@2x" src="https://github.com/user-attachments/assets/fe625d79-3c05-4d05-8ed8-f5769ea8351a" />
+
+
 The panning logic is upstream's: a 1 ms cursor poll thread, mouse smoothing derived from yuzu, radial deadzone math, and keyboard simulation through a Native abstraction. The Swift side only provides the settings UI, the ⌥⌘P hotkey, and the configurable pin position.
 
 ## Features
