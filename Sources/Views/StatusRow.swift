@@ -45,11 +45,11 @@ struct StatusRow: View {
     var action: StatusAction?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(title)
-                .font(.headline)
+        HStack(alignment: .center, spacing: 0) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(.headline)
 
-            HStack(alignment: .firstTextBaseline, spacing: 0) {
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
                     if let tone {
                         Image(systemName: tone.symbol)
@@ -74,17 +74,17 @@ struct StatusRow: View {
                         }
                     }
                 }
+            }
 
-                if secondaryAction != nil || action != nil {
-                    Spacer(minLength: 12)
-                }
-                if let secondaryAction {
-                    button(secondaryAction)
-                        .padding(.trailing, 8)
-                }
-                if let action {
-                    button(action)
-                }
+            if secondaryAction != nil || action != nil {
+                Spacer(minLength: 12)
+            }
+            if let secondaryAction {
+                button(secondaryAction)
+                    .padding(.trailing, 8)
+            }
+            if let action {
+                button(action)
             }
         }
         .accessibilityElement(children: .combine)

@@ -46,15 +46,15 @@ struct RootView: View {
 
                 Divider()
 
-                aboutRow
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 6)
-                    .background(
-                        RoundedRectangle(cornerRadius: 6)
-                            .fill(pane == .about ? Color.accentColor.opacity(0.2) : Color.clear)
-                    )
-                    .padding(.horizontal, 4)
-                    .padding(.bottom, 4)
+                // Same sidebar List component, one row, pinned at the bottom —
+                // shares the selection binding so look & behavior match exactly.
+                List(selection: $pane) {
+                    Label(Pane.about.label, systemImage: Pane.about.symbol)
+                        .tag(Pane.about)
+                }
+                .listStyle(.sidebar)
+                .scrollDisabled(true)
+                .frame(minHeight: 32, maxHeight: 40)
             }
             .navigationSplitViewColumnWidth(min: 180, ideal: 200, max: 260)
         } detail: {
@@ -65,17 +65,5 @@ struct RootView: View {
             case .about: AboutView()
             }
         }
-    }
-
-    private var aboutRow: some View {
-        Button {
-            pane = .about
-        } label: {
-            Label(Pane.about.label, systemImage: Pane.about.symbol)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .foregroundStyle(pane == .about ? Color.accentColor : .primary)
     }
 }
