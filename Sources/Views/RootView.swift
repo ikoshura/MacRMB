@@ -38,25 +38,22 @@ struct RootView: View {
 
     var body: some View {
         NavigationSplitView {
-            VStack(spacing: 0) {
-                List(selection: $pane) {
+            // Single List = single selection container: arrow keys flow
+            // through every row including About, and the highlight color
+            // is always consistent.
+            List(selection: $pane) {
+                Section {
                     ForEach(Self.mainPanes) { item in
                         Label(item.label, systemImage: item.symbol)
                             .tag(item)
                     }
                 }
-                .listStyle(.sidebar)
-
-                // Same sidebar List component, one row, pinned at the bottom —
-                // shares the selection binding so look & behavior match exactly.
-                List(selection: $pane) {
+                Section {
                     Label(Pane.about.label, systemImage: Pane.about.symbol)
                         .tag(Pane.about)
                 }
-                .listStyle(.sidebar)
-                .scrollDisabled(true)
-                .frame(minHeight: 32, maxHeight: 40)
             }
+            .listStyle(.sidebar)
             .navigationSplitViewColumnWidth(min: 180, ideal: 200, max: 260)
         } detail: {
             switch pane {
