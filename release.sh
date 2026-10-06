@@ -42,14 +42,30 @@ echo "==> [2.5/8] Re-sign all code (Developer ID + timestamp, strip debug entitl
 # preserving nested entitlements where they exist (never for the main app).
 SIGN_SPARKLE="$APP/Contents/Frameworks/Sparkle.framework/Versions/B"
 
+# Apple's timestamp service is occasionally unavailable (it failed mid-run
+# with "The timestamp service is not available") — retry with backoff
+# instead of letting set -e kill the pipeline with no explanation.
+sign_with_retry() {
+  local attempt
+  for attempt in 1 2 3 4 5; do
+    if codesign "$@"; then
+      return 0
+    fi
+    echo "  codesign attempt ${attempt}/5 failed — retrying in 5s..." >&2
+    sleep 5
+  done
+  echo "ERROR: codesign failed after 5 attempts" >&2
+  exit 1
+}
+
 resign_nested() {
   local target="$1" ent
   ent="$(mktemp)"
   if codesign -d --entitlements :- "$target" >"$ent" 2>/dev/null \
      && plutil -lint "$ent" >/dev/null 2>&1; then
-    codesign --force --timestamp --options runtime --entitlements "$ent" --sign "$SIGN_ID" "$target"
+    sign_with_retry --force --timestamp --options runtime --entitlements "$ent" --sign "$SIGN_ID" "$target"
   else
-    codesign --force --timestamp --options runtime --sign "$SIGN_ID" "$target"
+    sign_with_retry --force --timestamp --options runtime --sign "$SIGN_ID" "$target"
   fi
   rm -f "$ent"
 }
@@ -62,24 +78,27 @@ resign_nested "$SIGN_SPARKLE/Sparkle"
 resign_nested "$APP/Contents/Frameworks/Sparkle.framework"
 resign_nested "$APP/Contents/Frameworks/MacRMBKit.framework"
 # Main app last — signed WITHOUT entitlements so get-task-allow is dropped.
-codesign --force --timestamp --options runtime --sign "$SIGN_ID" "$APP"
+sign_with_retry --force --timestamp --options runtime --sign "$SIGN_ID" "$APP"
 
 echo "==> [2.6/8] Verify signing prerequisites for notarization"
-# codesign -d exits nonzero by design, and set -e is active — every check is
-# guarded with || / && so a "grep found nothing" (exit 1) can't kill the script.
-codesign --verify --deep --strict --verbose=2 "$APP"
-TS_OK=0; codesign -dvvv "$APP" 2>&1 | grep -q 'Timestamp=' || TS_OK=1
-GA_FOUND=0; codesign -d --entitlements - "$APP/Contents/MacOS/MacRMB" 2>/dev/null | grep -q 'get-task-allow' && GA_FOUND=1
-ADHOC_FOUND=0
+# Capture output first, then pattern-match the string — avoids the whole
+# errexit/pipefail/SIGPIPE-grep class of bugs that bit earlier iterations.
+SIGN_INFO="$(codesign -dvvv "$APP" 2>&1 || true)"
+ENT_INFO="$(codesign -d --entitlements - "$APP/Contents/MacOS/MacRMB" 2>/dev/null || true)"
+case "$SIGN_INFO" in
+  *"Timestamp="*) ;;
+  *) echo "ERROR: app signature has no secure timestamp"; exit 1 ;;
+esac
+case "$ENT_INFO" in
+  *"get-task-allow"*) echo "ERROR: get-task-allow still present in main executable"; exit 1 ;;
+esac
 for f in "$SIGN_SPARKLE/Updater.app" "$SIGN_SPARKLE/Autoupdate" "$SIGN_SPARKLE/Sparkle" \
          "$SIGN_SPARKLE/XPCServices/Downloader.xpc" "$SIGN_SPARKLE/XPCServices/Installer.xpc"; do
-  if codesign -dvvv "$f" 2>&1 | grep -q 'Signature=adhoc'; then
-    echo "ERROR: $f is still ad-hoc signed"; ADHOC_FOUND=1
-  fi
+  NESTED_INFO="$(codesign -dvvv "$f" 2>&1 || true)"
+  case "$NESTED_INFO" in
+    *"Signature=adhoc"*) echo "ERROR: $f is still ad-hoc signed"; exit 1 ;;
+  esac
 done
-[ "$TS_OK" -eq 0 ] || { echo "ERROR: app signature has no secure timestamp"; exit 1; }
-[ "$GA_FOUND" -eq 0 ] || { echo "ERROR: get-task-allow still present in main executable"; exit 1; }
-[ "$ADHOC_FOUND" -eq 0 ] || exit 1
 echo "signing OK"
 
 echo "==> [3/8] Notarize app (zip → notarytool → staple)"
@@ -107,12 +126,25 @@ spctl --assess --type open --context context:primary-signature -v "$DMG" || true
 echo "==> [6/8] Sparkle update zip (stapled app) + appcast.xml"
 ditto -c -k --keepParent "$APP" "$ZIP"
 "$SPARKLE_BIN/sign_update" "$ZIP" || true   # info only; generate_appcast signs itself
+# generate_appcast refuses a directory holding two archives with the same
+# bundle version (our DMG lives in dist/ too) — use a zip-only subfolder.
+SPARKLE_DIR="dist/sparkle"
+rm -rf "$SPARKLE_DIR"
+mkdir -p "$SPARKLE_DIR"
+cp "$ZIP" "$SPARKLE_DIR/"
 "$SPARKLE_BIN/generate_appcast" \
   --download-url-prefix "https://github.com/${REPO}/releases/download/${TAG}/" \
-  dist
+  "$SPARKLE_DIR"
+# Some generate_appcast runs skip EdDSA signing — inject it if missing,
+# otherwise Sparkle rejects the update client-side.
+if ! grep -q 'edSignature' "$SPARKLE_DIR/appcast.xml"; then
+  SIG_LINE=$("$SPARKLE_BIN/sign_update" "$ZIP" | sed 's/ length="[0-9]*"//')
+  sed -i '' "s|<enclosure url|<enclosure ${SIG_LINE} url|" "$SPARKLE_DIR/appcast.xml"
+fi
+grep -q 'edSignature' "$SPARKLE_DIR/appcast.xml" || { echo "ERROR: appcast has no edSignature"; exit 1; }
 
 echo "==> [7/8] Create GitHub release ${TAG}"
-gh release create "$TAG" "$DMG" "$ZIP" "dist/appcast.xml" \
+gh release create "$TAG" "$DMG" "$ZIP" "$SPARKLE_DIR/appcast.xml" \
   --repo "$REPO" \
   --title "MacRMB ${VERSION}" \
   --notes "$(printf 'MacRMB %s\n\n- Download **MacRMB-%s.dmg** and drag to /Applications.\n- Sparkle updates use appcast.xml from this release.\n' "$VERSION" "$VERSION")"
