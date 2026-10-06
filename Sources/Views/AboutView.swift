@@ -9,11 +9,13 @@ struct AboutView: View {
     var body: some View {
         Form {
             Section("MacRMB") {
-                StatusRow(title: "Version", value: appVersion, tone: .neutral)
+                Text("Version")
+                    .font(.headline)
+                Text(appVersion)
+                    .foregroundStyle(.secondary)
                 StatusRow(
                     title: "Updates",
                     value: updater.lastCheckResult ?? "Never checked",
-                    tone: updater.lastCheckResult == nil ? .info : .neutral,
                     action: StatusAction(
                         label: updater.isChecking ? "Checking…" : "Check for Updates",
                         isProminent: true,

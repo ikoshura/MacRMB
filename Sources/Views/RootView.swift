@@ -44,8 +44,6 @@ struct RootView: View {
                 }
                 .listStyle(.sidebar)
 
-                Divider()
-
                 // Same sidebar List component, one row, pinned at the bottom —
                 // shares the selection binding so look & behavior match exactly.
                 List(selection: $pane) {
