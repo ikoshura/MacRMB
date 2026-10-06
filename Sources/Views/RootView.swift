@@ -46,8 +46,6 @@ struct RootView: View {
                     }
                 }
                 .listStyle(.sidebar)
-                .tint(.secondary)
-                .focusable(false)
 
                 // Same sidebar List component, one row, pinned at the bottom —
                 // shares the selection binding so look & behavior match exactly.
@@ -56,8 +54,6 @@ struct RootView: View {
                         .tag(Pane.about)
                 }
                 .listStyle(.sidebar)
-                .tint(.secondary)
-                .focusable(false)
                 .scrollDisabled(true)
                 .frame(minHeight: 32, maxHeight: 40)
             }
