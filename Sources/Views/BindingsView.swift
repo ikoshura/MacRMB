@@ -1,4 +1,4 @@
-import RMBKit
+import MacRMBKit
 import SwiftUI
 
 /// 'Bindings' pane: right-stick keys, mouse-button bindings, behavior flags.

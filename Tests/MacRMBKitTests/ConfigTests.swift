@@ -1,7 +1,7 @@
 import Carbon.HIToolbox
 import CoreGraphics
 import XCTest
-@testable import RMBKit
+@testable import MacRMBKit
 
 final class ConfigTests: XCTestCase {
     func testDefaultsMatchUpstreamEngine() {

@@ -1,4 +1,4 @@
-import RMBKit
+import MacRMBKit
 import SwiftUI
 
 /// 'Panning' pane: upstream RMB analog parameters + pin position.

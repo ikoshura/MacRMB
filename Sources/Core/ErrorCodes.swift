@@ -26,11 +26,11 @@ public enum RMBErrorCode: String, CaseIterable, Sendable {
         case .uiHotkeyTaken:
             return "The global shortcut ⌥⌘P is already registered by another app."
         case .uiSelfFocused:
-            return "RMB is frontmost — switch to the emulator window."
+            return "MacRMB is frontmost — switch to the emulator window."
         case .permissionAccessibility:
             return "Accessibility access is required to read the mouse and send keys."
         case .inputTapUnavailable:
-            return "Could not create the event tap. Grant Accessibility access, then reopen RMB."
+            return "Could not create the event tap. Grant Accessibility access, then reopen MacRMB."
         case .inputKeyPostFailed:
             return "A keyboard event could not be posted."
         case .cursorBackgroundDenied:

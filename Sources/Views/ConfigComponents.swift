@@ -1,4 +1,4 @@
-import RMBKit
+import MacRMBKit
 import SwiftUI
 
 /// Titled slider row with a live value readout.

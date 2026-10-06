@@ -1,4 +1,4 @@
-name: RMB
+name: MacRMB
 options:
   bundleIdPrefix: dev.abrar
   createIntermediateGroups: true
@@ -33,7 +33,7 @@ targets:
           - "Vendor/RMB"
           - "Vendor/RMB/Utils"
           - "Vendor/RMB/macos"
-  RMBKit:
+  MacRMBKit:
     type: framework
     platform: macOS
     sources:
@@ -41,50 +41,50 @@ targets:
       - Sources/Settings
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: dev.abrar.RMBKit
+        PRODUCT_BUNDLE_IDENTIFIER: dev.abrar.MacRMBKit
         GENERATE_INFOPLIST_FILE: YES
-  RMB:
+  MacRMB:
     type: application
     platform: macOS
     sources:
       - Sources/App
       - Sources/Views
     dependencies:
-      - target: RMBKit
+      - target: MacRMBKit
       - target: RMBCore
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: dev.abrar.RMB
+        PRODUCT_BUNDLE_IDENTIFIER: dev.abrar.MacRMB
         GENERATE_INFOPLIST_FILE: YES
-        INFOPLIST_KEY_CFBundleDisplayName: RMB
+        INFOPLIST_KEY_CFBundleDisplayName: MacRMB
         INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.utilities
-        SWIFT_OBJC_BRIDGING_HEADER: "Sources/App/RMB-Bridging-Header.h"
+        SWIFT_OBJC_BRIDGING_HEADER: "Sources/App/MacRMB-Bridging-Header.h"
         HEADER_SEARCH_PATHS:
           - "$(inherited)"
           - "Vendor/RMB"
         OTHER_LDFLAGS:
           - "$(inherited)"
           - "-lc++"
-  RMBKitTests:
+  MacRMBKitTests:
     type: bundle.unit-test
     platform: macOS
     sources:
-      - Tests/RMBKitTests
+      - Tests/MacRMBKitTests
     dependencies:
-      - target: RMBKit
+      - target: MacRMBKit
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: dev.abrar.RMBKitTests
+        PRODUCT_BUNDLE_IDENTIFIER: dev.abrar.MacRMBKitTests
         GENERATE_INFOPLIST_FILE: YES
 schemes:
-  RMB:
+  MacRMB:
     build:
       targets:
-        RMB: all
-        RMBKitTests: [test]
+        MacRMB: all
+        MacRMBKitTests: [test]
     run:
       config: Debug
     test:
       config: Debug
       targets:
-        - RMBKitTests
+        - MacRMBKitTests

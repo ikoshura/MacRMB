@@ -1,4 +1,4 @@
-import RMBKit
+import MacRMBKit
 import SwiftUI
 
 /// Orange banner shown while Accessibility access is missing —
@@ -11,7 +11,7 @@ struct PermissionBanner: View {
             Label("Accessibility access required", systemImage: "exclamationmark.shield.fill")
                 .font(.headline)
 
-            Text("RMB needs Accessibility access to read mouse movement and send key presses to your emulator window. No Screen Recording needed.")
+            Text("MacRMB needs Accessibility access to read mouse movement and send key presses to your emulator window. No Screen Recording needed.")
                 .font(.callout)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)

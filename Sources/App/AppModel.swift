@@ -2,7 +2,7 @@ import AppKit
 import Combine
 import CoreGraphics
 import Foundation
-import RMBKit
+import MacRMBKit
 
 /// Conductor for the Swift UI ⇄ C++ engine bridge. Everything here runs on
 /// the main thread (Carbon hotkey handler, timers, engine status polls).

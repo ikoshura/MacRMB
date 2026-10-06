@@ -1,15 +1,15 @@
 import AppKit
-import RMBKit
+import MacRMBKit
 import SwiftUI
 
 @main
-struct RMBApp: App {
+struct MacRMBApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var model = AppModel.shared
     @State private var pane: Pane = .status
 
     var body: some Scene {
-        Window("RMB", id: "main") {
+        Window("MacRMB", id: "main") {
             RootView(pane: $pane)
                 .environmentObject(model)
                 .frame(minWidth: 700, minHeight: 480)
@@ -76,12 +76,12 @@ struct MenuBarView: View {
         Button(model.isPanning ? "Stop Panning" : "Start Panning (⌥⌘P)") {
             model.togglePanning()
         }
-        Button("Show RMB") {
+        Button("Show MacRMB") {
             openWindow(id: "main")
             NSApp.activate(ignoringOtherApps: true)
         }
         Divider()
-        Button("Quit RMB") {
+        Button("Quit MacRMB") {
             NSApp.terminate(nil)
         }
     }

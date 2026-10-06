@@ -1,4 +1,4 @@
-import RMBKit
+import MacRMBKit
 import SwiftUI
 
 /// 'Status' pane: engine state, panning control, target, permissions.
