@@ -1,4 +1,4 @@
-# RMB
+# MacRMB
 
 Mouse panning and mouse button binding for Switch emulators on macOS. It wraps the [IamSanjid/RMB](https://github.com/IamSanjid/RMB) C++ engine with a native Swift settings app.
 
