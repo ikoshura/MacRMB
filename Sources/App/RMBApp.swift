@@ -6,28 +6,55 @@ import SwiftUI
 struct RMBApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var model = AppModel.shared
+    @State private var pane: Pane = .status
 
     var body: some Scene {
-        Settings {
-            SettingsView()
+        Window("RMB", id: "main") {
+            RootView(pane: $pane)
                 .environmentObject(model)
-                .frame(minWidth: 540, idealWidth: 580, minHeight: 480, idealHeight: 620)
+                .frame(minWidth: 700, minHeight: 480)
         }
+        .defaultSize(width: 880, height: 640)
+        .commands { menus }
+
         MenuBarExtra {
             MenuBarView()
                 .environmentObject(model)
         } label: {
-            Image(systemName: model.status == .active ? "cursorarrow.rays" : "cursorarrow")
+            Image(systemName: model.isPanning ? "cursorarrow.rays" : "cursorarrow")
+        }
+    }
+
+    @CommandsBuilder
+    private var menus: some Commands {
+        CommandGroup(replacing: .newItem) {}
+
+        CommandGroup(after: .sidebar) {
+            Button("Status") { pane = .status }
+                .keyboardShortcut("1", modifiers: .command)
+            Button("Panning") { pane = .panning }
+                .keyboardShortcut("2", modifiers: .command)
+            Button("Bindings") { pane = .bindings }
+                .keyboardShortcut("3", modifiers: .command)
+
+            Divider()
+
+            Button(model.isPanning ? "Stop Panning" : "Start Panning") {
+                model.togglePanning()
+            }
+            .keyboardShortcut("p", modifiers: [.command, .option])
         }
     }
 }
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
-        // Developer/self-test mode: verifies the (undocumented) background
-        // cursor-hide path once and exits with a machine-readable result.
+        // Developer/self-test mode: exercise the engine's Native cursor
+        // hide/show path once and exit with a machine-readable result.
         if CommandLine.arguments.contains("--check-cursor") {
-            Self.runCursorCheck()
+            rmb_engine_cursor_self_test()
+            print("cursor-hide/show: OK (engine Native path)")
+            exit(0)
         }
         AppModel.shared.start()
     }
@@ -39,33 +66,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         false
     }
-
-    private static func runCursorCheck() -> Never {
-        if let hideError = CursorHider.hide() {
-            print("cursor-hide: FAIL \(hideError.fullDescription)")
-            exit(1)
-        }
-        print("cursor-hide: OK (hidden)")
-        usleep(400_000)
-        CursorHider.show()
-        print("cursor-show: OK (restored)")
-        exit(0)
-    }
 }
 
 struct MenuBarView: View {
+    @Environment(\.openWindow) private var openWindow
     @EnvironmentObject private var model: AppModel
 
     var body: some View {
-        Button(model.isPanningEnabled ? "Disable Panning" : "Enable Panning (⌥⌘P)") {
-            model.isPanningEnabled.toggle()
+        Button(model.isPanning ? "Stop Panning" : "Start Panning (⌥⌘P)") {
+            model.togglePanning()
         }
-        Button("Status: \(model.status.rawValue)") {}
-            .disabled(true)
-        Button("Settings…") {
-            model.openSettings()
+        Button("Show RMB") {
+            openWindow(id: "main")
+            NSApp.activate(ignoringOtherApps: true)
         }
-        .keyboardShortcut(",", modifiers: .command)
         Divider()
         Button("Quit RMB") {
             NSApp.terminate(nil)

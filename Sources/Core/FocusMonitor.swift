@@ -83,7 +83,7 @@ public final class FocusMonitor {
     }
 
     /// Window titles of another app's on-screen windows via AX.
-    static func windowTitles(of pid: pid_t) -> [String] {
+    public static func windowTitles(of pid: pid_t) -> [String] {
         let app = AXUIElementCreateApplication(pid)
         var value: CFTypeRef?
         guard AXUIElementCopyAttributeValue(app, kAXWindowsAttribute as CFString, &value) == .success,
@@ -104,7 +104,7 @@ public final class FocusMonitor {
 
     /// True when the frontmost app's name, bundle ID, or any of its window
     /// titles contains the target (case-insensitive). An empty target never matches.
-    static func matches(frontName: String?, bundleID: String?, titles: [String], target: String) -> Bool {
+    public static func matches(frontName: String?, bundleID: String?, titles: [String], target: String) -> Bool {
         let needle = target.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !needle.isEmpty else { return false }
         if let frontName, frontName.localizedCaseInsensitiveContains(needle) { return true }

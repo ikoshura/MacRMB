@@ -1,24 +1,27 @@
 # RMB
 
-**Mouse panning and mouse-button binding for Switch emulators on macOS** — a Swift-native reimplementation of [IamSanjid/RMB](https://github.com/IamSanjid/RMB)'s idea, built with the app architecture and UI language of [MetalGoose](https://github.com/Stallion77RepoOfficial/MetalGoose).
+**Mouse panning and mouse-button binding for Switch emulators on macOS** — the [IamSanjid/RMB](https://github.com/IamSanjid/RMB) C++ engine used as-is, driven by a Swift interface designed after [NotProton](https://github.com/NotProtonNot/NotProton)'s sidebar UI (with permission banners and stable error codes à la [MetalGoose](https://github.com/Stallion77RepoOfficial/MetalGoose)).
 
-While panning is active, your mouse is pinned at the emulator window's center: movement past a configurable deadzone holds arrow-key presses (which your emulator maps to the right stick), so you can aim the camera with the mouse — and mouse buttons can be bound to keys like ZL/ZR/A/B. The pinned cursor is hidden so it never distracts.
+Panning behavior is upstream's original algorithm: a 1 ms cursor poll thread, yuzu-derived mouse smoothing, radial deadzone math, and keyboard simulation through a Native abstraction. Swift supplies only the settings UI, the ⌥⌘P hotkey, and the configurable pin position.
 
 ## Features
 
-- **⌥⌘P** global hotkey toggles panning (raw Carbon hotkey — never steals focus from the game)
-- Cursor pinned at a **configurable position** in the target window — center or any corner (avoids resting on the game's pause/exit/titlebar hover UI) — plus X/Y offsets, deadzone, sensitivity, invert-Y, and **customizable Right Stick keys (default I/K/J/L)**
-- **Hide cursor while panning** — uses the same undocumented `SetsCursorInBackground` WindowServer property + `CGDisplayHideCursor` as the MIT-licensed Raycast *Mouse Cursor Toggle* extension, so it works while the emulator is frontmost. Restored automatically on deactivate/quit (and by macOS itself if RMB crashes)
-- Mouse-button → key bindings (left/right/middle/back/forward)
-- Target tracking by window title **or** app name (window titles read via the Accessibility API — no Screen Recording permission needed), with a **Detect** button
-- MetalGoose-style UI: grouped settings form, permission banner, stable error codes (`RMB-UI-001`, `RMB-CUR-001`, …) shown as coded alerts
-- Menu bar status item with quick enable/disable
-- Only one permission needed: **Accessibility**
+- **Original RMB C++ engine** (`Vendor/RMB/`, ~2.2 k lines): `Mouse` smoothing → `NpadController` deadzone math → `KeyboardManager` queues → `Native` key simulation, on its own 1 ms worker thread
+- **⌥⌘P** global hotkey (Carbon — never steals focus from the game)
+- Upstream analog parameters: sensitivity, radial deadzone, range, threshold, axis offsets — same values/semantics as original RMB
+- **Cursor auto-hide** exactly like upstream: shows while you move, hides after 2.5 s idle over the target, and **re-asserts every 2.5 s** (which keeps it hidden in fullscreen where macOS otherwise forgets), restored on stop/quit/crash
+- **Pin position**: screen center (original behavior) or any window corner (inset 80 px) plus px offsets — avoids resting on the game's pause/exit hover UI
+- Mouse-button → key bindings (left/right/middle), for ZL/ZR/A/B
+- Target tracking by window title **or** app name, with a **Detect** button
+- NotProton-style interface: sidebar `NavigationSplitView` (Status / Panning / Bindings), tone-dotted status rows with trailing actions, grouped forms
+- Menu bar item, `⌘1/2/3` pane shortcuts, commands menu
+- Stable error codes (`RMB-UI-001`, `RMB-CUR-001`, …) shown as coded alerts
 
 ## Requirements
 
 - macOS 13.0+ (developed/tested on macOS 27)
 - An emulator with keyboard input mapping (Ryujinx/Ryujinx forks, etc.)
+- Permissions: **Accessibility**, **Input Monitoring**, and **Allow Events to Your Mac** (Post-Event) — the engine requests all three on first launch
 
 ## Build
 
@@ -39,10 +42,10 @@ build/Build/Products/Debug/RMB.app/Contents/MacOS/RMB --check-cursor
 
 ## First-time setup
 
-1. Launch RMB → the orange **Accessibility access required** banner appears → *Grant Access* → enable RMB in **System Settings → Privacy & Security → Accessibility** → *Check Again*.
-2. In your emulator, bind **Right Stick** to **I/K/J/L** — RMB's default (change it under Settings → *Right Stick keys* if yours differ). Optionally bind ZL/ZR/buttons to keys like `Q`/`E`/`F`.
-3. In RMB, set **Target** to the emulator's window/app name (*Detect* fills it from the last focused window), and mirror any mouse-button bindings (e.g. Middle → `Q`).
-4. Press **⌥⌘P** while the emulator is focused — status turns *Panning*, the cursor hides, and mouse movement drives the camera.
+1. Launch RMB → grant the three prompts it asks for (**Accessibility**, **Input Monitoring**, **Allow Events to Your Mac**). If the orange banner shows, use *Grant Access* and enable RMB under **System Settings → Privacy & Security**.
+2. In your emulator, bind **Right Stick** to **I/K/J/L** — RMB's default (change it in the *Bindings* pane if yours differ). Optionally bind ZL/ZR/buttons to keys like `Q`/`E`/`F`.
+3. In the *Status* pane, set **Target** (*Detect* fills it from the frontmost window) and mirror any mouse-button bindings in *Bindings*.
+4. Press **⌥⌘P** — the emulator is auto-focused, the cursor hides after 2.5 s idle (re-asserted while it stays hidden), and mouse movement drives the camera.
 
 ## Configuration
 
@@ -50,19 +53,25 @@ Stored as JSON in `~/Library/Application Support/RMB/config.json`:
 
 ```jsonc
 {
+  "version" : 2,
   "targetName" : "Ryujinx",
-  "anchor" : "bottomRight", // center | topLeft | topRight | bottomLeft | bottomRight
-  "deadzone" : 12,          // px (after sensitivity) before input starts
-  "sensitivity" : 1,        // 0.1–3.0 delta multiplier
-  "offsetX" : 0, "offsetY" : 0,  // shifts the pin point from the chosen anchor
-  "invertY" : false,
+  "sensitivity" : 10,        // 1–30 (upstream scale)
+  "deadzone" : 0.15,         // 0–0.9 radial deadzone
+  "range" : 0.95,
+  "threshold" : 0.5,         // 0–1 axis press threshold
+  "stickOffsetX" : 0, "stickOffsetY" : 0,
   "hideCursor" : true,
+  "autoFocus" : true,
+  "bindMouseButtons" : true,
+  "persistentKeyPress" : false,
   "directions" : { "up" : 34, "down" : 40, "left" : 38, "right" : 37 }, // I/K/J/L
-  "bindings" : { "2" : 11 } // mouse button index → virtual key code (here: middle → C)
+  "bindings" : { "2" : 49 },  // mouse button index → key (middle → Space)
+  "anchor" : "center",        // center | topLeft | topRight | bottomLeft | bottomRight
+  "pinOffsetX" : 0, "pinOffsetY": 0
 }
 ```
 
-Right-stick keys are editable in **Settings → Right Stick keys** (or in the JSON) — e.g. WASD — just bind the same keys in your emulator. Legacy configs still using the old arrow-key default are migrated to I/K/J/L automatically on first load (explicitly chosen keys are preserved).
+Right-stick keys are editable in **Bindings → Right Stick keys** (or in the JSON) — just bind the same keys in your emulator. Analog parameters live under **Panning**. Legacy configs (v0/v1) migrate automatically on first load.
 
 ## Error codes
 
@@ -82,31 +91,35 @@ Codes are stable identifiers and are never renumbered; gaps are reserved.
 ## Architecture
 
 ```
+Vendor/RMB/            original RMB C++ engine (vendored, minimally patched)
+├── EngineDriver.cpp   our C driver replacing upstream's GLFW/ImGui Application
+├── rmb_engine.h       extern "C" API consumed by Swift via bridging header
+├── mouse / npad_controller / keyboard_manager / Config   upstream core (as-is)
+└── macos/             upstream Native implementation (event tap, CGS cursor hide)
 Sources/
-├── App/        RMBApp (SwiftUI scenes + menu bar), AppDelegate, AppModel conductor
-├── Views/      SettingsView, PermissionBanner, ConfigComponents (MetalGoose-style UI)
-├── Core/       Permissions, HotkeyManager (Carbon), CursorHider (CGS trick),
-│               FocusMonitor (AX window titles), WindowLocator, ErrorCodes
-├── Input/      EventTap (CGEventTap), PanningController (pin+warp), KeySimulator
-│               (CGEvent key posts), PanningMath (pure, unit-tested)
-└── Settings/   Config + ConfigStore (JSON), KeyCodeCatalog
-Tests/RMBKitTests/   19 unit tests (math, config round-trips, focus matching)
+├── App/               RMBApp (NotProton-style Window + commands), AppDelegate, AppModel bridge
+├── Views/             RootView (sidebar), StatusView + StatusRow, PanningView, BindingsView
+├── Core/              Permissions, HotkeyManager (Carbon), FocusMonitor, WindowLocator, ErrorCodes
+└── Settings/          Config v2 + ConfigStore (JSON, migrations), KeyCodeCatalog
+Tests/RMBKitTests/     15 unit tests (config round-trips, migrations, focus matching, anchors)
 ```
 
-`RMBKit` is a framework so the logic is testable without launching the UI.
+Three targets: `RMBCore` (C++20 static library with the vendored engine), `RMBKit` (Swift framework, testable without the UI), `RMB` (the app).
 
 ## Notes & limitations
 
 - **Mechanism**: RMB never injects into the emulator — it holds keyboard keys, relying on the emulator's own input configuration (same approach as the original RMB).
-- The cursor-hide capability step uses an **undocumented API** (`SetsCursorInBackground`) that could change in a future macOS release; both call results are checked and surfaced as `RMB-CUR-*` alerts with graceful fallback (panning still works, cursor just stays visible).
+- The engine's cursor hiding uses the **undocumented** `SetsCursorInBackground` connection property (same as upstream); both hide and show are exercised by `--check-cursor`, and macOS restores the cursor itself if the app dies.
 - Not Mac App Store eligible (undocumented API + input injection). Built to run locally/notarized outside the MAS.
-- CGEventTap is *listen-only*: your real clicks still reach the game.
+- The engine's event tap only swallows its own registered hotkeys; every other key and click passes through untouched.
 
 ## Credits
 
-- [IamSanjid/RMB](https://github.com/IamSanjid/RMB) — the original cross-platform concept and approach (unlicensed; this project reimplements the documented behavior in Swift rather than copying code)
-- [Stallion77RepoOfficial/MetalGoose](https://github.com/Stallion77RepoOfficial/MetalGoose) — app architecture & UI design language (GPL-3.0)
-- [Dhaiwat10/raycast-mouse-cursor-toggle](https://github.com/Dhaiwat10/raycast-mouse-cursor-toggle) — background cursor-hide technique (MIT)
+- [IamSanjid/RMB](https://github.com/IamSanjid/RMB) — the original C++ engine, vendored and driven from Swift (unlicensed; fine for personal use, **don't redistribute** without the author's permission — consider asking them to add a license)
+- [NotProtonNot/NotProton](https://github.com/NotProtonNot/NotProton) — UI structure and status-row design language (GPL-3.0)
+- [Stallion77RepoOfficial/MetalGoose](https://github.com/Stallion77RepoOfficial/MetalGoose) — permission banner / error-code conventions (GPL-3.0)
+- [Dhaiwat10/raycast-mouse-cursor-toggle](https://github.com/Dhaiwat10/raycast-mouse-cursor-toggle) — background cursor-hide technique reference (MIT)
+- [cameron314/concurrentqueue](https://github.com/cameron314/concurrentqueue) — lock-free queue used by the engine (MIT)
 
 ## License
 

@@ -1,21 +1,25 @@
 import AppKit
 import ApplicationServices
+import CoreGraphics
 import Foundation
 
-/// TCC permission helpers. RMB only needs Accessibility access:
-/// it reads mouse movement through an event tap and posts key presses
-/// into the focused emulator window. No Screen Recording required.
+/// TCC permission helpers. The engine's own `requestPermissions()` asks for
+/// Accessibility + Input Monitoring + Post-Event access at startup (needed
+/// for its HID-level event tap); these helpers back the settings banner.
 public enum Permissions {
     public static var isAccessibilityTrusted: Bool {
         AXIsProcessTrusted()
     }
 
-    /// Shows the system prompt (subject to TCC rules) and returns whether
-    /// access is already granted.
+    /// Shows the system prompts (subject to TCC rules) and returns whether
+    /// Accessibility access is already granted.
     @discardableResult
     public static func requestAccessibilityPrompt() -> Bool {
         let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
-        return AXIsProcessTrustedWithOptions(options)
+        let trusted = AXIsProcessTrustedWithOptions(options)
+        CGRequestListenEventAccess()
+        CGRequestPostEventAccess()
+        return trusted
     }
 
     public static let accessibilitySettingsURL =
@@ -25,3 +29,4 @@ public enum Permissions {
         NSWorkspace.shared.open(accessibilitySettingsURL)
     }
 }
+

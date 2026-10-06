@@ -4,24 +4,41 @@ import XCTest
 @testable import RMBKit
 
 final class ConfigTests: XCTestCase {
-    func testDefaultRoundTrip() throws {
-        let original = Config.default
-        let data = try JSONEncoder().encode(original)
-        let decoded = try JSONDecoder().decode(Config.self, from: data)
-        XCTAssertEqual(decoded, original)
+    func testDefaultsMatchUpstreamEngine() {
+        let config = Config.default
+        XCTAssertEqual(config.version, 2)
+        XCTAssertEqual(config.targetName, "Ryujinx")
+        XCTAssertEqual(config.sensitivity, 10, accuracy: 0.0001)
+        XCTAssertEqual(config.deadzone, 0.15, accuracy: 0.0001)
+        XCTAssertEqual(config.range, 0.95, accuracy: 0.0001)
+        XCTAssertEqual(config.threshold, 0.5, accuracy: 0.0001)
+        XCTAssertTrue(config.hideCursor)
+        XCTAssertTrue(config.autoFocus)
+        XCTAssertTrue(config.bindMouseButtons)
+        XCTAssertFalse(config.persistentKeyPress)
+        XCTAssertEqual(config.directions, .ijkl)
+        XCTAssertEqual(config.anchor, .center)
+        XCTAssertEqual(config.bindings, [:])
     }
 
-    func testCustomConfigRoundTrip() throws {
+    func testDefaultDirectionsAreJLIK() {
+        let d = DirectionKeys.ijkl
+        XCTAssertEqual(d.left, UInt16(kVK_ANSI_J))   // 38
+        XCTAssertEqual(d.right, UInt16(kVK_ANSI_L))  // 37
+        XCTAssertEqual(d.up, UInt16(kVK_ANSI_I))     // 34
+        XCTAssertEqual(d.down, UInt16(kVK_ANSI_K))   // 40
+        XCTAssertEqual(d.engineArray, [38, 37, 34, 40])
+    }
+
+    func testRoundTrip() throws {
         var original = Config.default
-        original.targetName = "yuzu — game"
-        original.deadzone = 20.5
-        original.sensitivity = 1.7
-        original.offsetX = -40
-        original.offsetY = 15
-        original.invertY = true
-        original.hideCursor = false
+        original.targetName = "Odyssey"
+        original.deadzone = 0.25
+        original.sensitivity = 17.5
+        original.bindings = [0: 8, 1: 9, 2: 11]
+        original.anchor = .bottomRight
+        original.pinOffsetX = -12
         original.directions = DirectionKeys(up: 13, down: 1, left: 0, right: 2)
-        original.bindings = [0: 8, 1: 9, 2: 11, 3: 45, 4: 46]
 
         let data = try JSONEncoder().encode(original)
         let decoded = try JSONDecoder().decode(Config.self, from: data)
@@ -30,12 +47,36 @@ final class ConfigTests: XCTestCase {
     }
 
     func testPartialJSONFallsBackToDefaults() throws {
-        let json = #"{"targetName": "Ryujinx"}"#.data(using: .utf8)!
+        let json = #"{"targetName":"Ryujinx"}"#.data(using: .utf8)!
         let decoded = try JSONDecoder().decode(Config.self, from: json)
         XCTAssertEqual(decoded.targetName, "Ryujinx")
-        XCTAssertEqual(decoded.deadzone, Config.default.deadzone)
-        XCTAssertEqual(decoded.hideCursor, true)
-        XCTAssertEqual(decoded.bindings, [:])
+        XCTAssertEqual(decoded.deadzone, 0.15, accuracy: 0.0001)
+        XCTAssertEqual(decoded.version, 0, "files without a version are legacy")
+    }
+
+    func testV1ConfigMigratesToV2() throws {
+        let json = """
+        {"version":1,"targetName":"SUPER MARIO ODYSSEY","deadzone":12,"sensitivity":3.0,\
+        "offsetX":-40,"offsetY":15,"anchor":"topLeft","hideCursor":true,\
+        "directions":{"up":34,"down":40,"left":38,"right":37},"bindings":{"2":49}}
+        """.data(using: .utf8)!
+
+        let decoded = try JSONDecoder().decode(Config.self, from: json)
+        XCTAssertEqual(decoded.version, 1)
+
+        let migrated = ConfigStore.migrate(decoded)
+        XCTAssertEqual(migrated.version, 2)
+        XCTAssertEqual(migrated.targetName, "SUPER MARIO ODYSSEY")
+        // Analog params adopt upstream semantics/defaults.
+        XCTAssertEqual(migrated.deadzone, 0.15, accuracy: 0.0001)
+        XCTAssertEqual(migrated.sensitivity, 10, accuracy: 0.0001)
+        // User-facing choices carry over.
+        XCTAssertEqual(migrated.pinOffsetX, -40, accuracy: 0.0001)
+        XCTAssertEqual(migrated.pinOffsetY, 15, accuracy: 0.0001)
+        XCTAssertEqual(migrated.anchor, .topLeft)
+        XCTAssertEqual(migrated.directions, .ijkl)
+        XCTAssertEqual(migrated.bindings[2], 49)
+        XCTAssertTrue(migrated.hideCursor)
     }
 
     func testStoreSaveLoad() throws {
@@ -44,7 +85,7 @@ final class ConfigTests: XCTestCase {
         let store = ConfigStore(url: url)
 
         var original = Config.default
-        original.sensitivity = 2.5
+        original.sensitivity = 14
         original.hideCursor = false
         original.bindings = [1: 49]
         try store.save(original)
@@ -60,57 +101,12 @@ final class ConfigTests: XCTestCase {
         XCTAssertEqual(store.load(), Config.default)
     }
 
-    func testDefaultsUseIJKLRightStickKeys() {
-        XCTAssertEqual(Config.default.directions, DirectionKeys.rightStick)
-        XCTAssertEqual(DirectionKeys.rightStick.up, UInt16(kVK_ANSI_I))    // 34
-        XCTAssertEqual(DirectionKeys.rightStick.down, UInt16(kVK_ANSI_K))  // 40
-        XCTAssertEqual(DirectionKeys.rightStick.left, UInt16(kVK_ANSI_J))  // 38
-        XCTAssertEqual(DirectionKeys.rightStick.right, UInt16(kVK_ANSI_L)) // 37
-        XCTAssertEqual(Config.default.version, 1)
-    }
-
-    func testLegacyArrowConfigMigratesToIJKL() throws {
-        let json = #"{"targetName":"Ryujinx","directions":{"up":126,"down":125,"left":123,"right":124}}"#
-            .data(using: .utf8)!
-        let decoded = try JSONDecoder().decode(Config.self, from: json)
-        XCTAssertEqual(decoded.version, 0, "files without a version are legacy")
-
-        let migrated = ConfigStore.migrate(decoded)
-        XCTAssertEqual(migrated.directions, .rightStick)
-        XCTAssertEqual(migrated.version, 1)
-        XCTAssertEqual(migrated.targetName, "Ryujinx")
-    }
-
-    func testLegacyCustomDirectionsArePreservedByMigration() {
-        var legacy = Config.default
-        legacy.version = 0
-        legacy.directions = DirectionKeys(up: 13, down: 1, left: 0, right: 2) // W/S/A/D
-        let migrated = ConfigStore.migrate(legacy)
-        XCTAssertEqual(migrated.directions, legacy.directions)
-        XCTAssertEqual(migrated.version, 1)
-    }
-
-    func testCurrentVersionConfigIsNotMigrated() {
-        var config = Config.default
-        config.directions = DirectionKeys(up: 13, down: 1, left: 0, right: 2)
-        let migrated = ConfigStore.migrate(config)
-        XCTAssertEqual(migrated.directions, config.directions)
-        XCTAssertEqual(migrated.version, 1)
-    }
+    // MARK: - Anchor presets
 
     func testAnchorDefaultsToCenterWhenMissing() throws {
         let json = #"{"targetName":"X"}"#.data(using: .utf8)!
         let decoded = try JSONDecoder().decode(Config.self, from: json)
         XCTAssertEqual(decoded.anchor, .center)
-    }
-
-    func testAnchorRoundTrip() throws {
-        var original = Config.default
-        original.anchor = .bottomRight
-        let data = try JSONEncoder().encode(original)
-        let decoded = try JSONDecoder().decode(Config.self, from: data)
-        XCTAssertEqual(decoded.anchor, .bottomRight)
-        XCTAssertEqual(decoded, original)
     }
 
     func testAnchorPoints() {
@@ -132,7 +128,6 @@ final class ConfigTests: XCTestCase {
             assertInside(preset.point(in: big), big, preset.rawValue)
         }
 
-        // Tiny window: inset clamps to the bounds, never escapes the frame.
         let tiny = CGRect(x: 10, y: 10, width: 50, height: 40)
         for preset in AnchorPreset.allCases {
             assertInside(preset.point(in: tiny), tiny, "tiny \(preset.rawValue)")

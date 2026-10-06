@@ -12,14 +12,32 @@ settings:
     CODE_SIGN_IDENTITY: "Developer ID Application: Abrar Zharifan Syah (JSYLVAZ935)"
     ENABLE_HARDENED_RUNTIME: YES
     CURRENT_PROJECT_VERSION: 1
-    MARKETING_VERSION: 1.0.0
+    MARKETING_VERSION: 1.1.0
 targets:
+  RMBCore:
+    type: library.static
+    platform: macOS
+    sources:
+      - path: Vendor/RMB
+        excludes:
+          - "macos/macos_appkit_impl.mm"
+      - path: Vendor/RMB/macos/macos_appkit_impl.mm
+        compilerFlags: "-fno-objc-arc"
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.abrar.RMBCore
+        GENERATE_INFOPLIST_FILE: YES
+        CLANG_CXX_LANGUAGE_STANDARD: c++20
+        HEADER_SEARCH_PATHS:
+          - "$(inherited)"
+          - "Vendor/RMB"
+          - "Vendor/RMB/Utils"
+          - "Vendor/RMB/macos"
   RMBKit:
     type: framework
     platform: macOS
     sources:
       - Sources/Core
-      - Sources/Input
       - Sources/Settings
     settings:
       base:
@@ -33,12 +51,20 @@ targets:
       - Sources/Views
     dependencies:
       - target: RMBKit
+      - target: RMBCore
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: dev.abrar.RMB
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_CFBundleDisplayName: RMB
         INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.utilities
+        SWIFT_OBJC_BRIDGING_HEADER: "Sources/App/RMB-Bridging-Header.h"
+        HEADER_SEARCH_PATHS:
+          - "$(inherited)"
+          - "Vendor/RMB"
+        OTHER_LDFLAGS:
+          - "$(inherited)"
+          - "-lc++"
   RMBKitTests:
     type: bundle.unit-test
     platform: macOS

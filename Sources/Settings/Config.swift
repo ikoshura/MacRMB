@@ -3,8 +3,8 @@ import CoreGraphics
 import Foundation
 
 /// The four keys held to emulate the right stick (bound in the emulator's
-/// input configuration). Defaults are the arrow keys (virtual key codes
-/// kVK_UpArrow 126, kVK_DownArrow 125, kVK_LeftArrow 123, kVK_RightArrow 124).
+/// input configuration). Field order mirrors the engine's
+/// `RIGHT_STICK_KEYS[4]` layout: [left, right, up, down].
 public struct DirectionKeys: Codable, Equatable {
     public var up: UInt16
     public var down: UInt16
@@ -18,21 +18,25 @@ public struct DirectionKeys: Codable, Equatable {
         self.right = right
     }
 
-    /// Legacy default (arrow keys) — kept for migration detection only.
-    public static let arrows = DirectionKeys(up: 126, down: 125, left: 123, right: 124)
-    /// I/K/J/L — matches the common right-stick keyboard mapping
-    /// (Ryujinx: RStick Up=I, Down=K, Left=J, Right=L).
-    public static let rightStick = DirectionKeys(
+    /// Upstream default — J/L/I/K, the common right-stick mapping
+    /// (Ryujinx: RStick Left=J, Right=L, Up=I, Down=K).
+    public static let ijkl = DirectionKeys(
         up: UInt16(kVK_ANSI_I),
         down: UInt16(kVK_ANSI_K),
         left: UInt16(kVK_ANSI_J),
         right: UInt16(kVK_ANSI_L)
     )
+
+    /// Engine order: [0]=left, [1]=right, [2]=up, [3]=down.
+    public var engineArray: [Int] {
+        [Int(left), Int(right), Int(up), Int(down)]
+    }
 }
 
 /// Where inside the target window the cursor is pinned while panning.
 /// Corners are inset from the window edge so the cursor doesn't sit on
-/// border/titlebar hover zones.
+/// border/titlebar hover zones. `.center` falls back to upstream's
+/// behavior (center of the main display).
 public enum AnchorPreset: String, Codable, CaseIterable, Equatable {
     case center
     case topLeft
@@ -42,11 +46,11 @@ public enum AnchorPreset: String, Codable, CaseIterable, Equatable {
 
     public var label: String {
         switch self {
-        case .center: return "Window center"
-        case .topLeft: return "Top left"
-        case .topRight: return "Top right"
-        case .bottomLeft: return "Bottom left"
-        case .bottomRight: return "Bottom right"
+        case .center: return "Screen center"
+        case .topLeft: return "Window top left"
+        case .topRight: return "Window top right"
+        case .bottomLeft: return "Window bottom left"
+        case .bottomRight: return "Window bottom right"
         }
     }
 
@@ -75,72 +79,115 @@ public enum AnchorPreset: String, Codable, CaseIterable, Equatable {
 }
 
 public struct Config: Codable, Equatable {
-    /// Window title or app name to track (e.g. "Ryujinx").
-    public var targetName: String
-    /// px (after sensitivity) the cursor must move from center before input starts.
-    public var deadzone: Double
-    /// 0.1 … 3.0 multiplier applied to mouse deltas.
-    public var sensitivity: Double
-    /// px offsets shifting the pin point from the chosen anchor.
-    public var offsetX: Double
-    public var offsetY: Double
-    /// Where the cursor is pinned inside the target window.
-    public var anchor: AnchorPreset
-    public var invertY: Bool
-    public var hideCursor: Bool
-    public var directions: DirectionKeys
-    /// Mouse button index (0 = left, 1 = right, 2 = middle, 3/4 = back/forward)
-    /// → virtual key code held while that button is pressed.
-    public var bindings: [Int: UInt16]
+    public static let `default` = Config()
+
     /// Config format version. Files without the key decode as 0 (legacy).
-    public var version: Int = 1
+    /// v1 = first Swift release (px deadzone), v2 = upstream engine semantics.
+    public var version: Int = 2
+
+    /// Window title or app name substring to track (e.g. "Ryujinx").
+    public var targetName: String
+
+    // Upstream analog parameters (see NpadController::SanatizeAxes).
+    public var sensitivity: Double   // 1…30, default 10 (engine ×0.0044 scale)
+    public var deadzone: Double      // 0…0.9 radial deadzone, default 0.15
+    public var range: Double         // 0.5…1.5, default 0.95
+    public var threshold: Double     // 0…1 axis press threshold, default 0.5
+    public var stickOffsetX: Double  // -0.75…0.75 stick-axis bias
+    public var stickOffsetY: Double
+
+    // Behavior toggles (engine Config flags).
+    public var hideCursor: Bool
+    public var autoFocus: Bool
+    public var bindMouseButtons: Bool
+    public var persistentKeyPress: Bool
+
+    // Input mapping (CGKeyCode values).
+    public var directions: DirectionKeys
+    /// Mouse button index (0 = left, 1 = right, 2 = middle) → key held while pressed.
+    public var bindings: [Int: UInt16]
+
+    // Pin point (our addition on top of upstream's screen-center pinning).
+    public var anchor: AnchorPreset
+    public var pinOffsetX: Double    // px shift applied to the pin point
+    public var pinOffsetY: Double
 
     public init(
         targetName: String = "Ryujinx",
-        deadzone: Double = 12,
-        sensitivity: Double = 1.0,
-        offsetX: Double = 0,
-        offsetY: Double = 0,
-        anchor: AnchorPreset = .center,
-        invertY: Bool = false,
+        sensitivity: Double = 10,
+        deadzone: Double = 0.15,
+        range: Double = 0.95,
+        threshold: Double = 0.5,
+        stickOffsetX: Double = 0,
+        stickOffsetY: Double = 0,
         hideCursor: Bool = true,
-        directions: DirectionKeys = .rightStick,
-        bindings: [Int: UInt16] = [:]
+        autoFocus: Bool = true,
+        bindMouseButtons: Bool = true,
+        persistentKeyPress: Bool = false,
+        directions: DirectionKeys = .ijkl,
+        bindings: [Int: UInt16] = [:],
+        anchor: AnchorPreset = .center,
+        pinOffsetX: Double = 0,
+        pinOffsetY: Double = 0
     ) {
         self.targetName = targetName
-        self.deadzone = deadzone
         self.sensitivity = sensitivity
-        self.offsetX = offsetX
-        self.offsetY = offsetY
-        self.anchor = anchor
-        self.invertY = invertY
+        self.deadzone = deadzone
+        self.range = range
+        self.threshold = threshold
+        self.stickOffsetX = stickOffsetX
+        self.stickOffsetY = stickOffsetY
         self.hideCursor = hideCursor
+        self.autoFocus = autoFocus
+        self.bindMouseButtons = bindMouseButtons
+        self.persistentKeyPress = persistentKeyPress
         self.directions = directions
         self.bindings = bindings
+        self.anchor = anchor
+        self.pinOffsetX = pinOffsetX
+        self.pinOffsetY = pinOffsetY
     }
 
-    public static let `default` = Config()
-
     private enum CodingKeys: String, CodingKey {
-        case targetName, deadzone, sensitivity, offsetX, offsetY, anchor, invertY, hideCursor, directions, bindings, version
+        case version, targetName, sensitivity, deadzone, range, threshold
+        case stickOffsetX, stickOffsetY, hideCursor, autoFocus
+        case bindMouseButtons, persistentKeyPress, directions, bindings
+        case anchor, pinOffsetX, pinOffsetY
+    }
+
+    /// v1-only keys, read without participating in encoding.
+    private enum LegacyOffsetKey: String, CodingKey {
+        case offsetX, offsetY
     }
 
     /// Lenient decoding: unknown or missing fields fall back to defaults so
     /// older config files keep working across versions.
     public init(from decoder: Decoder) throws {
         self.init()
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        targetName = try container.decodeIfPresent(String.self, forKey: .targetName) ?? targetName
-        deadzone = try container.decodeIfPresent(Double.self, forKey: .deadzone) ?? deadzone
-        sensitivity = try container.decodeIfPresent(Double.self, forKey: .sensitivity) ?? sensitivity
-        offsetX = try container.decodeIfPresent(Double.self, forKey: .offsetX) ?? offsetX
-        offsetY = try container.decodeIfPresent(Double.self, forKey: .offsetY) ?? offsetY
-        anchor = try container.decodeIfPresent(AnchorPreset.self, forKey: .anchor) ?? anchor
-        invertY = try container.decodeIfPresent(Bool.self, forKey: .invertY) ?? invertY
-        hideCursor = try container.decodeIfPresent(Bool.self, forKey: .hideCursor) ?? hideCursor
-        directions = try container.decodeIfPresent(DirectionKeys.self, forKey: .directions) ?? directions
-        bindings = try container.decodeIfPresent([Int: UInt16].self, forKey: .bindings) ?? bindings
-        version = try container.decodeIfPresent(Int.self, forKey: .version) ?? 0
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        version = try c.decodeIfPresent(Int.self, forKey: .version) ?? 0
+        targetName = try c.decodeIfPresent(String.self, forKey: .targetName) ?? targetName
+        sensitivity = try c.decodeIfPresent(Double.self, forKey: .sensitivity) ?? sensitivity
+        deadzone = try c.decodeIfPresent(Double.self, forKey: .deadzone) ?? deadzone
+        range = try c.decodeIfPresent(Double.self, forKey: .range) ?? range
+        threshold = try c.decodeIfPresent(Double.self, forKey: .threshold) ?? threshold
+        stickOffsetX = try c.decodeIfPresent(Double.self, forKey: .stickOffsetX) ?? stickOffsetX
+        stickOffsetY = try c.decodeIfPresent(Double.self, forKey: .stickOffsetY) ?? stickOffsetY
+        hideCursor = try c.decodeIfPresent(Bool.self, forKey: .hideCursor) ?? hideCursor
+        autoFocus = try c.decodeIfPresent(Bool.self, forKey: .autoFocus) ?? autoFocus
+        bindMouseButtons = try c.decodeIfPresent(Bool.self, forKey: .bindMouseButtons) ?? bindMouseButtons
+        persistentKeyPress = try c.decodeIfPresent(Bool.self, forKey: .persistentKeyPress) ?? persistentKeyPress
+        directions = try c.decodeIfPresent(DirectionKeys.self, forKey: .directions) ?? directions
+        bindings = try c.decodeIfPresent([Int: UInt16].self, forKey: .bindings) ?? bindings
+        anchor = try c.decodeIfPresent(AnchorPreset.self, forKey: .anchor) ?? anchor
+        pinOffsetX = try c.decodeIfPresent(Double.self, forKey: .pinOffsetX) ?? pinOffsetX
+        pinOffsetY = try c.decodeIfPresent(Double.self, forKey: .pinOffsetY) ?? pinOffsetY
+        if version < 2 {
+            // v1 stored the pin offsets under offsetX/offsetY.
+            let legacy = try decoder.container(keyedBy: LegacyOffsetKey.self)
+            pinOffsetX = try legacy.decodeIfPresent(Double.self, forKey: .offsetX) ?? pinOffsetX
+            pinOffsetY = try legacy.decodeIfPresent(Double.self, forKey: .offsetY) ?? pinOffsetY
+        }
     }
 }
 
@@ -166,21 +213,6 @@ public final class ConfigStore {
         return ConfigStore.migrate(config)
     }
 
-    /// One-time migrations for configs written by older releases.
-    static func migrate(_ config: Config) -> Config {
-        var config = config
-        if config.version < 1 {
-            // v0 (first release) defaulted to the arrow keys, which many
-            // emulators map to the left stick (walking). Move to the
-            // I/K/J/L right-stick bindings unless the user chose others.
-            if config.directions == .arrows {
-                config.directions = .rightStick
-            }
-            config.version = 1
-        }
-        return config
-    }
-
     public func save(_ config: Config) throws {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
@@ -191,4 +223,26 @@ public final class ConfigStore {
         )
         try data.write(to: url, options: .atomic)
     }
+
+    /// One-time migrations for configs written by older releases.
+    static func migrate(_ config: Config) -> Config {
+        var config = config
+        if config.version < 2 {
+            // v1 used px deadzone/sensitivity semantics; adopt the upstream
+            // engine's normalized parameters and defaults. (Pin offsets and
+            // everything user-facing were already carried over at decode time.)
+            config.sensitivity = Config.default.sensitivity
+            config.deadzone = Config.default.deadzone
+            config.range = Config.default.range
+            config.threshold = Config.default.threshold
+            config.stickOffsetX = 0
+            config.stickOffsetY = 0
+            config.autoFocus = true
+            config.bindMouseButtons = true
+            config.persistentKeyPress = false
+            config.version = 2
+        }
+        return config
+    }
 }
+

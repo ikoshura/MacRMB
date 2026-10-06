@@ -4,7 +4,7 @@ import XCTest
 @testable import RMBKit
 
 final class BehaviorTests: XCTestCase {
-    // MARK: - Focus matching
+    // MARK: - Focus matching (used by Detect and pin computation)
 
     func testTargetMatchesAppName() {
         XCTAssertTrue(
@@ -35,35 +35,17 @@ final class BehaviorTests: XCTestCase {
         )
     }
 
-    // MARK: - Key catalog
+    // MARK: - Key catalog (binding pickers)
 
     func testKeyCatalogNamesKnownCodes() {
         XCTAssertEqual(KeyCodeCatalog.name(for: 49), "Space")
         XCTAssertEqual(KeyCodeCatalog.name(for: 126), "Up")
         XCTAssertEqual(KeyCodeCatalog.name(for: UInt16(kVK_ANSI_A)), "A")
+        XCTAssertEqual(KeyCodeCatalog.name(for: UInt16(kVK_ANSI_J)), "J")
     }
 
     func testKeyCatalogHasNoDuplicateCodes() {
         let codes = KeyCodeCatalog.common.map(\.code)
         XCTAssertEqual(codes.count, Set(codes).count)
-    }
-
-    // MARK: - Key simulator bookkeeping (no events posted for empty sets)
-
-    func testReleaseAllOnIdleSimulatorIsSafe() {
-        let simulator = KeySimulator()
-        let controller = PanningController(keys: simulator, config: .default)
-        XCTAssertFalse(controller.isActive)
-        controller.deactivate()
-        controller.handleMouseMoved(location: CGPoint(x: 100, y: 100))
-        XCTAssertTrue(simulator.pressedKeys.isEmpty)
-    }
-
-    func testInactiveControllerIgnoresMouseMovement() {
-        let simulator = KeySimulator()
-        let controller = PanningController(keys: simulator, config: .default)
-        controller.handleMouseMoved(location: CGPoint(x: 500, y: 500))
-        XCTAssertTrue(simulator.pressedKeys.isEmpty)
-        XCTAssertNil(controller.center)
     }
 }

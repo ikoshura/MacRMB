@@ -1,18 +1,12 @@
 import AppKit
 import Combine
+import CoreGraphics
 import Foundation
 import RMBKit
 
-/// Orchestrates the whole app. Everything here runs on the main thread:
-/// the Carbon hotkey handler, the focus timer, and the CGEventTap callback
-/// are all scheduled on the main run loop.
+/// Conductor for the Swift UI ⇄ C++ engine bridge. Everything here runs on
+/// the main thread (Carbon hotkey handler, timers, engine status polls).
 final class AppModel: ObservableObject {
-    enum Status: String, Equatable {
-        case idle = "Off"
-        case armed = "Waiting for target"
-        case active = "Panning"
-    }
-
     static let shared = AppModel()
 
     @Published var config: Config {
@@ -21,51 +15,23 @@ final class AppModel: ObservableObject {
             applyConfig()
         }
     }
-
-    @Published var isPanningEnabled = false {
-        didSet {
-            guard isPanningEnabled != oldValue else { return }
-            panningStateChanged()
-        }
-    }
-
-    @Published private(set) var status: Status = .idle
-    @Published var error: RMBError?
+    @Published private(set) var isPanning = false
+    @Published private(set) var targetActive = false
+    @Published private(set) var engineStarted = false
     @Published private(set) var accessibilityTrusted: Bool
+    @Published var error: RMBError?
     @Published private(set) var lastExternalName: String?
 
     private let store = ConfigStore()
-    private let keySim = KeySimulator()
-    private let panning: PanningController
-    private let tap = EventTap()
     private let hotkeys = HotkeyManager()
-    private let focus = FocusMonitor()
-    private var axPollTimer: Timer?
+    private var statusTimer: Timer?
+    private var axTimer: Timer?
     private var started = false
-    private var targetPID: pid_t?
-    private var cursorHiddenByUs = false
 
     private init() {
         let loaded = store.load()
         config = loaded
         accessibilityTrusted = Permissions.isAccessibilityTrusted
-        panning = PanningController(keys: keySim, config: loaded)
-
-        keySim.onPostFailure = { [weak self] _ in
-            self?.error = RMBError(code: .inputKeyPostFailed)
-        }
-        hotkeys.onToggle = { [weak self] _ in
-            self?.isPanningEnabled.toggle()
-        }
-        tap.onMouseMoved = { [weak self] location in
-            self?.panning.handleMouseMoved(location: location)
-        }
-        tap.onMouseButton = { [weak self] button, down in
-            self?.handleMouseButton(button, down: down)
-        }
-        focus.onSnapshot = { [weak self] snapshot in
-            self?.handleFocus(snapshot)
-        }
     }
 
     // MARK: - Lifecycle
@@ -74,31 +40,42 @@ final class AppModel: ObservableObject {
         guard !started else { return }
         started = true
 
-        accessibilityTrusted = Permissions.isAccessibilityTrusted
+        engineStarted = rmb_engine_start() == 0
+        if !engineStarted {
+            error = RMBError(code: .inputTapUnavailable, detail: "rmb_engine_start failed")
+        }
+        applyConfig()
+
+        hotkeys.onToggle = { [weak self] _ in
+            self?.togglePanning()
+        }
         if let registrationError = hotkeys.register() {
             error = registrationError
         }
-        focus.start(target: config.targetName)
-        ensureTap()
 
-        let timer = Timer(timeInterval: 2.0, repeats: true) { [weak self] _ in
+        pollStatus()
+        let status = Timer(timeInterval: 0.5, repeats: true) { [weak self] _ in
+            self?.pollStatus()
+        }
+        RunLoop.main.add(status, forMode: .common)
+        statusTimer = status
+
+        let ax = Timer(timeInterval: 2.0, repeats: true) { [weak self] _ in
             self?.pollAccessibility()
         }
-        RunLoop.main.add(timer, forMode: .common)
-        axPollTimer = timer
+        RunLoop.main.add(ax, forMode: .common)
+        axTimer = ax
     }
 
     func shutdown() {
         guard started else { return }
         started = false
-        panning.deactivate()
-        CursorHider.show()
-        cursorHiddenByUs = false
-        tap.stop()
-        focus.stop()
+        rmb_engine_stop()
         hotkeys.unregister()
-        axPollTimer?.invalidate()
-        axPollTimer = nil
+        statusTimer?.invalidate()
+        axTimer?.invalidate()
+        statusTimer = nil
+        axTimer = nil
     }
 
     // MARK: - Permissions
@@ -110,9 +87,6 @@ final class AppModel: ObservableObject {
 
     func recheckPermissions() {
         accessibilityTrusted = Permissions.isAccessibilityTrusted
-        if accessibilityTrusted {
-            ensureTap()
-        }
     }
 
     private func pollAccessibility() {
@@ -120,119 +94,117 @@ final class AppModel: ObservableObject {
         if trusted != accessibilityTrusted {
             accessibilityTrusted = trusted
         }
-        if trusted && !tap.isRunning {
-            ensureTap()
-        }
     }
 
-    private func ensureTap() {
-        guard Permissions.isAccessibilityTrusted else { return }
-        if !tap.start() {
-            error = RMBError(code: .inputTapUnavailable)
+    // MARK: - Panning
+
+    /// Entry point for ⌥⌘P, the menu command, the menu bar, and the
+    /// status-row button.
+    func togglePanning() {
+        guard engineStarted else { return }
+        if rmb_engine_is_panning() == 0 {
+            let pin = computePin()
+            rmb_engine_set_pin(Int32(pin.x.rounded()), Int32(pin.y.rounded()))
         }
+        rmb_engine_toggle_panning()
+        pollStatus()
     }
 
+    /// Pin point in CG global coordinates. `.center` (default) reproduces
+    /// upstream's center-of-main-display pin; window anchors are our
+    /// addition for games with hover UI at the screen center.
+    private func computePin() -> CGPoint {
+        let display = CGDisplayBounds(CGMainDisplayID())
+        let screenCenter = CGPoint(x: display.midX, y: display.midY)
 
-    // MARK: - Panning state
-
-    private func panningStateChanged() {
-        if !isPanningEnabled {
-            deactivatePanning()
+        if config.anchor != .center, let frame = targetFrame() {
+            let point = config.anchor.point(in: frame)
+            return CGPoint(
+                x: point.x + config.pinOffsetX,
+                y: point.y + config.pinOffsetY
+            )
         }
-        // Turning on waits for the next focus snapshot (≤100 ms).
-        recomputeStatus()
+        return CGPoint(
+            x: screenCenter.x + config.pinOffsetX,
+            y: screenCenter.y + config.pinOffsetY
+        )
     }
 
-    private func handleFocus(_ snapshot: FocusMonitor.Snapshot) {
-        if let name = snapshot.lastExternalName {
+    private func targetFrame() -> CGRect? {
+        guard let front = NSWorkspace.shared.frontmostApplication else { return nil }
+        let titles = FocusMonitor.windowTitles(of: front.processIdentifier)
+        guard FocusMonitor.matches(
+            frontName: front.localizedName,
+            bundleID: front.bundleIdentifier,
+            titles: titles,
+            target: config.targetName
+        ) else { return nil }
+        return WindowLocator.targetFrame(ownerPID: front.processIdentifier)
+    }
+
+    private func pollStatus() {
+        let panning = rmb_engine_is_panning() != 0
+        if panning != isPanning {
+            isPanning = panning
+        }
+        let active = rmb_engine_is_target_active() != 0
+        if active != targetActive {
+            targetActive = active
+        }
+        captureExternalIfAny()
+    }
+
+    /// Remembers the last non-self frontmost window/app name for Detect.
+    private func captureExternalIfAny() {
+        guard let front = NSWorkspace.shared.frontmostApplication,
+              front.processIdentifier != getpid()
+        else { return }
+        let titles = FocusMonitor.windowTitles(of: front.processIdentifier)
+        if let name = titles.first ?? front.localizedName, !name.isEmpty, name != lastExternalName {
             lastExternalName = name
         }
-        targetPID = snapshot.targetPID
-
-        let shouldActivate = isPanningEnabled && snapshot.targetFocused && !snapshot.isOwnAppFocused
-        if shouldActivate != panning.isActive {
-            if shouldActivate {
-                activatePanning()
-            } else {
-                deactivatePanning()
-            }
-        } else if shouldActivate {
-            // Keep the pin center in sync in case the window moved.
-            panning.updateCenter(computedCenter())
-        }
-        recomputeStatus()
     }
 
-    private func activatePanning() {
-        panning.activate(at: computedCenter())
-        applyCursorVisibility()
-    }
+    // MARK: - Config → engine
 
-    private func deactivatePanning() {
-        panning.deactivate()
-        if cursorHiddenByUs {
-            CursorHider.show()
-            cursorHiddenByUs = false
-        }
-    }
-
-    private func computedCenter() -> CGPoint {
-        let frame = targetPID.flatMap { WindowLocator.targetFrame(ownerPID: $0) }
-            ?? WindowLocator.mainDisplayFrame
-        let anchor = config.anchor.point(in: frame)
-        return CGPoint(x: anchor.x + config.offsetX, y: anchor.y + config.offsetY)
-    }
-
-    private func applyCursorVisibility() {
-        guard config.hideCursor else {
-            if cursorHiddenByUs {
-                CursorHider.show()
-                cursorHiddenByUs = false
-            }
-            return
-        }
-        guard !cursorHiddenByUs, panning.isActive else { return }
-        if let cursorError = CursorHider.hide() {
-            error = cursorError
-        } else {
-            cursorHiddenByUs = true
-        }
-    }
-
-    private func recomputeStatus() {
-        let newStatus: Status
-        if !isPanningEnabled {
-            newStatus = .idle
-        } else if panning.isActive {
-            newStatus = .active
-        } else {
-            newStatus = .armed
-        }
-        if status != newStatus {
-            status = newStatus
-        }
-    }
-
-    private func handleMouseButton(_ button: Int, down: Bool) {
-        guard panning.isActive, let key = config.bindings[button] else { return }
-        keySim.setKey(key, down: down)
-    }
-
-    private func applyConfig() {
-        panning.updateConfig(config)
-        focus.retarget(config.targetName)
-        if panning.isActive {
-            panning.updateCenter(computedCenter())
-            applyCursorVisibility()
+    func applyConfig() {
+        var c = RmbEngineConfig()
+        let d = config.directions
+        c.stick_keys = (Int32(d.left), Int32(d.right), Int32(d.up), Int32(d.down))
+        c.left_mouse_key = config.bindings[0].map { Int32($0) } ?? -1
+        c.right_mouse_key = config.bindings[1].map { Int32($0) } ?? -1
+        c.middle_mouse_key = config.bindings[2].map { Int32($0) } ?? -1
+        c.sensitivity = Float(config.sensitivity)
+        c.deadzone = Float(config.deadzone)
+        c.range = Float(config.range)
+        c.threshold = Float(config.threshold)
+        c.x_offset = Float(config.stickOffsetX)
+        c.y_offset = Float(config.stickOffsetY)
+        c.hide_mouse = config.hideCursor ? 1 : 0
+        c.auto_focus = config.autoFocus ? 1 : 0
+        c.bind_mouse_button = config.bindMouseButtons ? 1 : 0
+        c.persistent_key_press = config.persistentKeyPress ? 1 : 0
+        config.targetName.withCString { name in
+            c.target_name = name
+            rmb_engine_reconfig(&c)
         }
     }
 
     // MARK: - UI actions
 
-    /// Pre-fills the target from the last app/window observed in front
-    /// before RMB itself was focused.
+    /// Pre-fills the target from the frontmost (or last frontmost) window.
     func detectTarget() {
-        if let name = lastExternalName, !name.isEmpty {
+        if let front = NSWorkspace.shared.frontmostApplication,
+           front.processIdentifier != getpid()
+        {
+            let titles = FocusMonitor.windowTitles(of: front.processIdentifier)
+            if let name = titles.first ?? front.localizedName, !name.isEmpty {
+                lastExternalName = name
+                config.targetName = name
+                return
+            }
+        }
+        if let name = lastExternalName {
             config.targetName = name
         } else {
             error = RMBError(
@@ -240,11 +212,5 @@ final class AppModel: ObservableObject {
                 detail: "Focus the emulator window first, then click Detect."
             )
         }
-    }
-
-    func openSettings() {
-        NSApp.activate(ignoringOtherApps: true)
-        NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
-        NSApp.sendAction(Selector(("showPreferencesWindow:")), to: nil, from: nil)
     }
 }
