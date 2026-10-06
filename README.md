@@ -1,26 +1,26 @@
 # RMB
 
-**Mouse panning and mouse-button binding for Switch emulators on macOS** — the [IamSanjid/RMB](https://github.com/IamSanjid/RMB) C++ engine used as-is, driven by a Swift interface designed after [NotProton](https://github.com/NotProtonNot/NotProton)'s sidebar UI (with permission banners and stable error codes à la [MetalGoose](https://github.com/Stallion77RepoOfficial/MetalGoose)).
+Mouse panning and mouse button binding for Switch emulators on macOS. It wraps the [IamSanjid/RMB](https://github.com/IamSanjid/RMB) C++ engine with a native Swift settings app.
 
-Panning behavior is upstream's original algorithm: a 1 ms cursor poll thread, yuzu-derived mouse smoothing, radial deadzone math, and keyboard simulation through a Native abstraction. Swift supplies only the settings UI, the ⌥⌘P hotkey, and the configurable pin position.
+The panning logic is upstream's: a 1 ms cursor poll thread, mouse smoothing derived from yuzu, radial deadzone math, and keyboard simulation through a Native abstraction. The Swift side only provides the settings UI, the ⌥⌘P hotkey, and the configurable pin position.
 
 ## Features
 
-- **Original RMB C++ engine** (`Vendor/RMB/`, ~2.2 k lines): `Mouse` smoothing → `NpadController` deadzone math → `KeyboardManager` queues → `Native` key simulation, on its own 1 ms worker thread
-- **⌥⌘P** global hotkey (Carbon — never steals focus from the game)
-- Upstream analog parameters: sensitivity, radial deadzone, range, threshold, axis offsets — same values/semantics as original RMB
-- **Cursor auto-hide** exactly like upstream's mechanism (the same `SetsCursorInBackground` technique as the Raycast cursor-toggle extension): **hides immediately when panning starts**, re-asserted every 2.5 s while panning or idle over the target, restored on stop/quit/crash
-- Mouse-button → key bindings (left/right/middle), for ZL/ZR/A/B
-- Target tracking by window title **or** app name, with a **Detect** button
-- NotProton-style interface: sidebar `NavigationSplitView` (Status / Panning / Bindings), tone-dotted status rows with trailing actions, grouped forms
-- Menu bar item, `⌘1/2/3` pane shortcuts, commands menu
-- Stable error codes (`RMB-UI-001`, `RMB-CUR-001`, …) shown as coded alerts
+- Upstream RMB C++ engine in `Vendor/RMB/` (about 2.2k lines): `Mouse` smoothing, `NpadController` deadzone math, `KeyboardManager` queues, and `Native` key simulation, running on its own 1 ms worker thread
+- ⌥⌘P global hotkey (Carbon, so it doesn't take focus from the game)
+- Upstream analog parameters: sensitivity, radial deadzone, range, threshold, and axis offsets, with the same values and meaning as the original
+- Cursor auto-hide using the same `SetsCursorInBackground` technique as upstream and the Raycast cursor-toggle extension. The cursor hides when panning starts, is re-applied every 2.5 s while panning or idle over the target, and is restored on stop, quit, or crash
+- Mouse button to key bindings (left, right, middle), useful for ZL, ZR, A, and B
+- Target tracking by window title or app name, with a Detect button
+- Sidebar interface with Status, Panning, and Bindings panes, status rows with colored indicators, and grouped forms
+- Menu bar item, `⌘1/2/3` pane shortcuts, and a commands menu
+- Stable error codes (`RMB-UI-001`, `RMB-CUR-001`, and so on) shown in alerts
 
 ## Requirements
 
-- macOS 13.0+ (developed/tested on macOS 27)
-- An emulator with keyboard input mapping (Ryujinx/Ryujinx forks, etc.)
-- Permissions: **Accessibility**, **Input Monitoring**, and **Allow Events to Your Mac** (Post-Event) — the engine requests all three on first launch
+- macOS 13.0 or later (developed and tested on macOS 27)
+- An emulator with keyboard input mapping (Ryujinx, Ryujinx forks, etc.)
+- Permissions: Accessibility, Input Monitoring, and Allow Events to Your Mac (Post-Event). The engine requests all three on first launch
 
 ## Build
 
@@ -29,11 +29,11 @@ xcodegen generate          # regenerates RMB.xcodeproj from project.yml
 xcodebuild -project RMB.xcodeproj -scheme RMB -configuration Debug \
   -destination 'platform=macOS' -derivedDataPath build build
 xcodebuild -project RMB.xcodeproj -scheme RMB -configuration Debug \
-  -destination 'platform=macOS' -derivedDataPath build test   # 19 unit tests
+  -destination 'platform=macOS' -derivedDataPath build test   # unit tests
 open build/Build/Products/Debug/RMB.app
 ```
 
-Self-test for the cursor-hide path (exit 0 = works on your OS):
+Self-test for the cursor-hide path (exit code 0 means it works on your OS):
 
 ```sh
 build/Build/Products/Debug/RMB.app/Contents/MacOS/RMB --check-cursor
@@ -41,10 +41,10 @@ build/Build/Products/Debug/RMB.app/Contents/MacOS/RMB --check-cursor
 
 ## First-time setup
 
-1. Launch RMB → grant the three prompts it asks for (**Accessibility**, **Input Monitoring**, **Allow Events to Your Mac**). If the orange banner shows, use *Grant Access* and enable RMB under **System Settings → Privacy & Security**.
-2. In your emulator, bind **Right Stick** to **I/K/J/L** — RMB's default (change it in the *Bindings* pane if yours differ). Optionally bind ZL/ZR/buttons to keys like `Q`/`E`/`F`.
-3. In the *Status* pane, set **Target** (*Detect* fills it from the frontmost window) and mirror any mouse-button bindings in *Bindings*.
-4. Press **⌥⌘P** — the emulator is auto-focused, the cursor hides after 2.5 s idle (re-asserted while it stays hidden), and mouse movement drives the camera.
+1. Launch RMB and grant the three permission prompts (Accessibility, Input Monitoring, Allow Events to Your Mac). If the orange banner shows, use Grant Access and enable RMB under System Settings > Privacy & Security.
+2. In your emulator, bind Right Stick to I/K/J/L, which is RMB's default (change it in the Bindings pane if yours differ). Optionally bind ZL, ZR, and buttons to keys like `Q`, `E`, and `F`.
+3. In the Status pane, set the Target (Detect fills it in from the frontmost window) and mirror any mouse button bindings in Bindings.
+4. Press ⌥⌘P. The emulator is focused automatically, the cursor hides after 2.5 s of idle time (and stays hidden while re-applied), and mouse movement drives the camera.
 
 ## Configuration
 
@@ -54,21 +54,21 @@ Stored as JSON in `~/Library/Application Support/RMB/config.json`:
 {
   "version" : 2,
   "targetName" : "Ryujinx",
-  "sensitivity" : 10,        // 1–30 (upstream scale)
-  "deadzone" : 0.15,         // 0–0.9 radial deadzone
+  "sensitivity" : 10,        // 1-30 (upstream scale)
+  "deadzone" : 0.15,         // 0-0.9 radial deadzone
   "range" : 0.95,
-  "threshold" : 0.5,         // 0–1 axis press threshold
+  "threshold" : 0.5,         // 0-1 axis press threshold
   "stickOffsetX" : 0, "stickOffsetY" : 0,
   "hideCursor" : true,
   "autoFocus" : true,
   "bindMouseButtons" : true,
   "persistentKeyPress" : false,
   "directions" : { "up" : 34, "down" : 40, "left" : 38, "right" : 37 }, // I/K/J/L
-  "bindings" : { "2" : 49 }   // mouse button index → key (middle → Space)
+  "bindings" : { "2" : 49 }   // mouse button index to key (middle = Space)
 }
 ```
 
-Right-stick keys are editable in **Bindings → Right Stick keys** (or in the JSON) — just bind the same keys in your emulator. Analog parameters live under **Panning**. Legacy configs (v0/v1) migrate automatically on first load.
+Right stick keys can be edited under Bindings > Right Stick keys (or in the JSON). Just bind the same keys in your emulator. Analog parameters are under Panning. Older configs (v0 and v1) are migrated automatically on first load.
 
 ## Error codes
 
@@ -83,42 +83,39 @@ Right-stick keys are editable in **Bindings → Right Stick keys** (or in the JS
 | `RMB-CUR-002` | `CGDisplayHideCursor` failed |
 | `RMB-TGT-001` | No window matched the target name (Detect) |
 
-Codes are stable identifiers and are never renumbered; gaps are reserved.
+Codes are stable identifiers and are never renumbered. Gaps are reserved.
 
 ## Architecture
 
 ```
-Vendor/RMB/            original RMB C++ engine (vendored, minimally patched)
-├── EngineDriver.cpp   our C driver replacing upstream's GLFW/ImGui Application
-├── rmb_engine.h       extern "C" API consumed by Swift via bridging header
-├── mouse / npad_controller / keyboard_manager / Config   upstream core (as-is)
+Vendor/RMB/            upstream RMB C++ engine (vendored, minimally patched)
+├── EngineDriver.cpp   C driver replacing upstream's GLFW/ImGui Application
+├── rmb_engine.h       extern "C" API used by Swift through a bridging header
+├── mouse / npad_controller / keyboard_manager / Config   upstream core, unchanged
 └── macos/             upstream Native implementation (event tap, CGS cursor hide)
 Sources/
-├── App/               RMBApp (NotProton-style Window + commands), AppDelegate, AppModel bridge
+├── App/               RMBApp (window and commands), AppDelegate, AppModel bridge
 ├── Views/             RootView (sidebar), StatusView + StatusRow, PanningView, BindingsView
 ├── Core/              Permissions, HotkeyManager (Carbon), FocusMonitor, WindowLocator, ErrorCodes
 └── Settings/          Config v2 + ConfigStore (JSON, migrations), KeyCodeCatalog
-Tests/RMBKitTests/     15 unit tests (config round-trips, migrations, focus matching, anchors)
+Tests/RMBKitTests/     unit tests (config round-trips, migrations, focus matching, anchors)
 ```
 
-Three targets: `RMBCore` (C++20 static library with the vendored engine), `RMBKit` (Swift framework, testable without the UI), `RMB` (the app).
+Three targets: `RMBCore` (C++20 static library with the vendored engine), `RMBKit` (Swift framework, testable without the UI), and `RMB` (the app).
 
-## Notes & limitations
+## Notes and limitations
 
-- **Mechanism**: RMB never injects into the emulator — it holds keyboard keys, relying on the emulator's own input configuration (same approach as the original RMB).
-- The engine's cursor hiding uses the **undocumented** `SetsCursorInBackground` connection property (same as upstream); both hide and show are exercised by `--check-cursor`, and macOS restores the cursor itself if the app dies.
-- Not Mac App Store eligible (undocumented API + input injection). Built to run locally/notarized outside the MAS.
-- The engine's event tap only swallows its own registered hotkeys; every other key and click passes through untouched.
+- RMB never injects input into the emulator directly. It holds keyboard keys and relies on the emulator's own input configuration, the same approach as the original RMB.
+- Cursor hiding uses the undocumented `SetsCursorInBackground` connection property, same as upstream. Both hide and show are exercised by `--check-cursor`, and macOS restores the cursor itself if the app dies.
+- Not eligible for the Mac App Store because of the undocumented API and input injection. Intended to run locally or be notarized and distributed outside the store.
+- The engine's event tap only swallows its own registered hotkeys. Every other key and click passes through untouched.
 
 ## Credits
 
-- [IamSanjid/RMB](https://github.com/IamSanjid/RMB) — the original C++ engine, vendored and driven from Swift (unlicensed; fine for personal use, **don't redistribute** without the author's permission — consider asking them to add a license)
-- [NotProtonNot/NotProton](https://github.com/NotProtonNot/NotProton) — UI structure and status-row design language (GPL-3.0)
-- [Stallion77RepoOfficial/MetalGoose](https://github.com/Stallion77RepoOfficial/MetalGoose) — permission banner / error-code conventions (GPL-3.0)
-- [Dhaiwat10/raycast-mouse-cursor-toggle](https://github.com/Dhaiwat10/raycast-mouse-cursor-toggle) — background cursor-hide technique reference (MIT)
-- [cameron314/concurrentqueue](https://github.com/cameron314/concurrentqueue) — lock-free queue used by the engine (MIT)
+- [IamSanjid/RMB](https://github.com/IamSanjid/RMB): the original C++ engine, vendored and driven from Swift. It has no license, so it is fine for personal use but should not be redistributed without the author's permission. Consider asking them to add a license.
+- [Dhaiwat10/raycast-mouse-cursor-toggle](https://github.com/Dhaiwat10/raycast-mouse-cursor-toggle): reference for the background cursor-hide technique (MIT)
+- [cameron314/concurrentqueue](https://github.com/cameron314/concurrentqueue): lock-free queue used by the engine (MIT)
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
-
+MIT, see [LICENSE](LICENSE).
