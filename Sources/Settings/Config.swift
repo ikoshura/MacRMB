@@ -33,51 +33,6 @@ public struct DirectionKeys: Codable, Equatable {
     }
 }
 
-/// Where inside the target window the cursor is pinned while panning.
-/// Corners are inset from the window edge so the cursor doesn't sit on
-/// border/titlebar hover zones. `.center` falls back to upstream's
-/// behavior (center of the main display).
-public enum AnchorPreset: String, Codable, CaseIterable, Equatable {
-    case center
-    case topLeft
-    case topRight
-    case bottomLeft
-    case bottomRight
-
-    public var label: String {
-        switch self {
-        case .center: return "Screen center"
-        case .topLeft: return "Window top left"
-        case .topRight: return "Window top right"
-        case .bottomLeft: return "Window bottom left"
-        case .bottomRight: return "Window bottom right"
-        }
-    }
-
-    /// Pin point in CG global coordinates (origin top-left). Corners are
-    /// inset by `inset` px, clamped so the point always stays inside `frame`.
-    public func point(in frame: CGRect, inset: CGFloat = 80) -> CGPoint {
-        func corner(_ x: CGFloat, _ y: CGFloat) -> CGPoint {
-            CGPoint(
-                x: min(max(x, frame.minX), frame.maxX),
-                y: min(max(y, frame.minY), frame.maxY)
-            )
-        }
-        switch self {
-        case .center:
-            return CGPoint(x: frame.midX, y: frame.midY)
-        case .topLeft:
-            return corner(frame.minX + inset, frame.minY + inset)
-        case .topRight:
-            return corner(frame.maxX - inset, frame.minY + inset)
-        case .bottomLeft:
-            return corner(frame.minX + inset, frame.maxY - inset)
-        case .bottomRight:
-            return corner(frame.maxX - inset, frame.maxY - inset)
-        }
-    }
-}
-
 public struct Config: Codable, Equatable {
     public static let `default` = Config()
 
@@ -107,11 +62,6 @@ public struct Config: Codable, Equatable {
     /// Mouse button index (0 = left, 1 = right, 2 = middle) → key held while pressed.
     public var bindings: [Int: UInt16]
 
-    // Pin point (our addition on top of upstream's screen-center pinning).
-    public var anchor: AnchorPreset
-    public var pinOffsetX: Double    // px shift applied to the pin point
-    public var pinOffsetY: Double
-
     public init(
         targetName: String = "Ryujinx",
         sensitivity: Double = 10,
@@ -125,10 +75,7 @@ public struct Config: Codable, Equatable {
         bindMouseButtons: Bool = true,
         persistentKeyPress: Bool = false,
         directions: DirectionKeys = .ijkl,
-        bindings: [Int: UInt16] = [:],
-        anchor: AnchorPreset = .center,
-        pinOffsetX: Double = 0,
-        pinOffsetY: Double = 0
+        bindings: [Int: UInt16] = [:]
     ) {
         self.targetName = targetName
         self.sensitivity = sensitivity
@@ -143,21 +90,12 @@ public struct Config: Codable, Equatable {
         self.persistentKeyPress = persistentKeyPress
         self.directions = directions
         self.bindings = bindings
-        self.anchor = anchor
-        self.pinOffsetX = pinOffsetX
-        self.pinOffsetY = pinOffsetY
     }
 
     private enum CodingKeys: String, CodingKey {
         case version, targetName, sensitivity, deadzone, range, threshold
         case stickOffsetX, stickOffsetY, hideCursor, autoFocus
         case bindMouseButtons, persistentKeyPress, directions, bindings
-        case anchor, pinOffsetX, pinOffsetY
-    }
-
-    /// v1-only keys, read without participating in encoding.
-    private enum LegacyOffsetKey: String, CodingKey {
-        case offsetX, offsetY
     }
 
     /// Lenient decoding: unknown or missing fields fall back to defaults so
@@ -179,15 +117,6 @@ public struct Config: Codable, Equatable {
         persistentKeyPress = try c.decodeIfPresent(Bool.self, forKey: .persistentKeyPress) ?? persistentKeyPress
         directions = try c.decodeIfPresent(DirectionKeys.self, forKey: .directions) ?? directions
         bindings = try c.decodeIfPresent([Int: UInt16].self, forKey: .bindings) ?? bindings
-        anchor = try c.decodeIfPresent(AnchorPreset.self, forKey: .anchor) ?? anchor
-        pinOffsetX = try c.decodeIfPresent(Double.self, forKey: .pinOffsetX) ?? pinOffsetX
-        pinOffsetY = try c.decodeIfPresent(Double.self, forKey: .pinOffsetY) ?? pinOffsetY
-        if version < 2 {
-            // v1 stored the pin offsets under offsetX/offsetY.
-            let legacy = try decoder.container(keyedBy: LegacyOffsetKey.self)
-            pinOffsetX = try legacy.decodeIfPresent(Double.self, forKey: .offsetX) ?? pinOffsetX
-            pinOffsetY = try legacy.decodeIfPresent(Double.self, forKey: .offsetY) ?? pinOffsetY
-        }
     }
 }
 

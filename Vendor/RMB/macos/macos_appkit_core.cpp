@@ -152,6 +152,50 @@ extern "C"
         return -1;
     }
 
+    // Window titles via the Accessibility API. CGWindowName (kCGWindowName)
+    // is permission-gated behind Screen Recording on macOS 10.15+, which RMB
+    // never requests — AX titles only need Accessibility, which RMB already
+    // requires for its event tap. Used as a fallback by isMainWindowActive
+    // and setFocusOnWindow.
+    static bool ax_window_title_contains(pid_t pid, const char *needle)
+    {
+        if (pid <= 0 || needle == nullptr || needle[0] == '\0')
+        {
+            return false;
+        }
+        bool found = false;
+        AXUIElementRef app = AXUIElementCreateApplication(pid);
+        if (app == nullptr)
+        {
+            return false;
+        }
+        CFArrayRef windows = nullptr;
+        if (AXUIElementCopyAttributeValues(app, kAXWindowsAttribute, 0, 9999, &windows) == kAXErrorSuccess &&
+            windows != nullptr)
+        {
+            CFIndex count = CFArrayGetCount(windows);
+            for (CFIndex i = 0; i < count && !found; i++)
+            {
+                AXUIElementRef window = (AXUIElementRef)CFArrayGetValueAtIndex(windows, i);
+                CFTypeRef title_ref = nullptr;
+                if (AXUIElementCopyAttributeValue(window, kAXTitleAttribute, &title_ref) == kAXErrorSuccess &&
+                    title_ref != nullptr)
+                {
+                    char buffer[MAX_WINDOW_TITLE_LENGTH]{0};
+                    if (CFStringGetCString(static_cast<CFStringRef>(title_ref), buffer, MAX_WINDOW_TITLE_LENGTH,
+                                           kCFStringEncodingUTF8))
+                    {
+                        found = strstr(buffer, needle) != nullptr;
+                    }
+                    CFRelease(title_ref);
+                }
+            }
+            CFRelease(windows);
+        }
+        CFRelease(app);
+        return found;
+    }
+
     void AppKit::requestPermissions()
     {
         enableAccessibility();
@@ -207,6 +251,13 @@ extern "C"
             result = strstr(title, window_name) != nullptr;
             free((void *)title);
         }
+        // CG titles are unavailable without Screen Recording — fall back to
+        // Accessibility window titles (game-window-title targets like
+        // "SUPER MARIO ODYSSEY…" only match through this path).
+        if (!result)
+        {
+            result = ax_window_title_contains(app_info.pid, window_name);
+        }
         return result;
     }
 
@@ -252,6 +303,26 @@ extern "C"
                     free((void *)title);
 
                 if (pid > 0)
+                {
+                    if (setFocusOnWindowId(pid))
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            // CG titles are permission-gated without Screen Recording —
+            // retry matching through the Accessibility API before giving up
+            // (otherwise auto-focus silently fails for title-based targets).
+            for (CFIndex i = 0; i < count; i++)
+            {
+                CFDictionaryRef window = static_cast<CFDictionaryRef>(CFArrayGetValueAtIndex(windowList, i));
+                if (CGWindowLayer(window) != 0)
+                {
+                    continue;
+                }
+                int pid = CGWindowPID(window);
+                if (pid > 0 && ax_window_title_contains(static_cast<pid_t>(pid), window_name))
                 {
                     if (setFocusOnWindowId(pid))
                     {

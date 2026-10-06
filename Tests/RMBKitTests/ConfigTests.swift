@@ -17,7 +17,6 @@ final class ConfigTests: XCTestCase {
         XCTAssertTrue(config.bindMouseButtons)
         XCTAssertFalse(config.persistentKeyPress)
         XCTAssertEqual(config.directions, .ijkl)
-        XCTAssertEqual(config.anchor, .center)
         XCTAssertEqual(config.bindings, [:])
     }
 
@@ -36,8 +35,6 @@ final class ConfigTests: XCTestCase {
         original.deadzone = 0.25
         original.sensitivity = 17.5
         original.bindings = [0: 8, 1: 9, 2: 11]
-        original.anchor = .bottomRight
-        original.pinOffsetX = -12
         original.directions = DirectionKeys(up: 13, down: 1, left: 0, right: 2)
 
         let data = try JSONEncoder().encode(original)
@@ -57,7 +54,7 @@ final class ConfigTests: XCTestCase {
     func testV1ConfigMigratesToV2() throws {
         let json = """
         {"version":1,"targetName":"SUPER MARIO ODYSSEY","deadzone":12,"sensitivity":3.0,\
-        "offsetX":-40,"offsetY":15,"anchor":"topLeft","hideCursor":true,\
+        "offsetX":-40,"offsetY":15,"hideCursor":true,\
         "directions":{"up":34,"down":40,"left":38,"right":37},"bindings":{"2":49}}
         """.data(using: .utf8)!
 
@@ -70,10 +67,7 @@ final class ConfigTests: XCTestCase {
         // Analog params adopt upstream semantics/defaults.
         XCTAssertEqual(migrated.deadzone, 0.15, accuracy: 0.0001)
         XCTAssertEqual(migrated.sensitivity, 10, accuracy: 0.0001)
-        // User-facing choices carry over.
-        XCTAssertEqual(migrated.pinOffsetX, -40, accuracy: 0.0001)
-        XCTAssertEqual(migrated.pinOffsetY, 15, accuracy: 0.0001)
-        XCTAssertEqual(migrated.anchor, .topLeft)
+        // User-facing choices carry over (legacy pin offsets are ignored).
         XCTAssertEqual(migrated.directions, .ijkl)
         XCTAssertEqual(migrated.bindings[2], 49)
         XCTAssertTrue(migrated.hideCursor)
@@ -99,38 +93,5 @@ final class ConfigTests: XCTestCase {
             .appendingPathComponent("RMBMissing-\(UUID().uuidString)/config.json")
         let store = ConfigStore(url: url)
         XCTAssertEqual(store.load(), Config.default)
-    }
-
-    // MARK: - Anchor presets
-
-    func testAnchorDefaultsToCenterWhenMissing() throws {
-        let json = #"{"targetName":"X"}"#.data(using: .utf8)!
-        let decoded = try JSONDecoder().decode(Config.self, from: json)
-        XCTAssertEqual(decoded.anchor, .center)
-    }
-
-    func testAnchorPoints() {
-        func assertInside(_ point: CGPoint, _ rect: CGRect, _ label: String) {
-            XCTAssertTrue(
-                point.x >= rect.minX && point.x <= rect.maxX
-                    && point.y >= rect.minY && point.y <= rect.maxY,
-                "\(label): \(point) outside \(rect)"
-            )
-        }
-
-        let frame = CGRect(x: 100, y: 50, width: 400, height: 300)
-        XCTAssertEqual(AnchorPreset.center.point(in: frame), CGPoint(x: 300, y: 200))
-
-        let big = CGRect(x: 0, y: 0, width: 1000, height: 800)
-        XCTAssertEqual(AnchorPreset.topLeft.point(in: big), CGPoint(x: 80, y: 80))
-        XCTAssertEqual(AnchorPreset.bottomRight.point(in: big), CGPoint(x: 920, y: 720))
-        for preset in AnchorPreset.allCases {
-            assertInside(preset.point(in: big), big, preset.rawValue)
-        }
-
-        let tiny = CGRect(x: 10, y: 10, width: 50, height: 40)
-        for preset in AnchorPreset.allCases {
-            assertInside(preset.point(in: tiny), tiny, "tiny \(preset.rawValue)")
-        }
     }
 }

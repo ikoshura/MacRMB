@@ -9,8 +9,7 @@ Panning behavior is upstream's original algorithm: a 1 ms cursor poll thread, yu
 - **Original RMB C++ engine** (`Vendor/RMB/`, ~2.2 k lines): `Mouse` smoothing → `NpadController` deadzone math → `KeyboardManager` queues → `Native` key simulation, on its own 1 ms worker thread
 - **⌥⌘P** global hotkey (Carbon — never steals focus from the game)
 - Upstream analog parameters: sensitivity, radial deadzone, range, threshold, axis offsets — same values/semantics as original RMB
-- **Cursor auto-hide** exactly like upstream: shows while you move, hides after 2.5 s idle over the target, and **re-asserts every 2.5 s** (which keeps it hidden in fullscreen where macOS otherwise forgets), restored on stop/quit/crash
-- **Pin position**: screen center (original behavior) or any window corner (inset 80 px) plus px offsets — avoids resting on the game's pause/exit hover UI
+- **Cursor auto-hide** exactly like upstream's mechanism (the same `SetsCursorInBackground` technique as the Raycast cursor-toggle extension): **hides immediately when panning starts**, re-asserted every 2.5 s while panning or idle over the target, restored on stop/quit/crash
 - Mouse-button → key bindings (left/right/middle), for ZL/ZR/A/B
 - Target tracking by window title **or** app name, with a **Detect** button
 - NotProton-style interface: sidebar `NavigationSplitView` (Status / Panning / Bindings), tone-dotted status rows with trailing actions, grouped forms
@@ -65,9 +64,7 @@ Stored as JSON in `~/Library/Application Support/RMB/config.json`:
   "bindMouseButtons" : true,
   "persistentKeyPress" : false,
   "directions" : { "up" : 34, "down" : 40, "left" : 38, "right" : 37 }, // I/K/J/L
-  "bindings" : { "2" : 49 },  // mouse button index → key (middle → Space)
-  "anchor" : "center",        // center | topLeft | topRight | bottomLeft | bottomRight
-  "pinOffsetX" : 0, "pinOffsetY": 0
+  "bindings" : { "2" : 49 }   // mouse button index → key (middle → Space)
 }
 ```
 

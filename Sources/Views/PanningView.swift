@@ -37,26 +37,6 @@ struct PanningView: View {
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
-
-            Section("Pin position") {
-                Picker("Pin position", selection: $model.config.anchor) {
-                    ForEach(AnchorPreset.allCases, id: \.self) { preset in
-                        Text(preset.label).tag(preset)
-                    }
-                }
-                LabeledSlider(
-                    title: "Pin offset X", icon: "move",
-                    value: $model.config.pinOffsetX, range: -300...300, unit: " px"
-                )
-                LabeledSlider(
-                    title: "Pin offset Y", icon: "move",
-                    value: $model.config.pinOffsetY, range: -300...300, unit: " px"
-                )
-                Text("“Screen center” is the original behavior. Window corners are inset 80 px so the cursor never rests on titlebar/pause hover zones.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
         }
         .formStyle(.grouped)
     }

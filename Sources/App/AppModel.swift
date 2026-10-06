@@ -99,47 +99,13 @@ final class AppModel: ObservableObject {
     // MARK: - Panning
 
     /// Entry point for ⌥⌘P, the menu command, the menu bar, and the
-    /// status-row button.
+    /// status-row button. The engine pins the cursor at the screen center
+    /// (upstream behavior); rmb_engine_set_pin() remains available in the
+    /// C API for custom points but is no longer exposed in the UI.
     func togglePanning() {
         guard engineStarted else { return }
-        if rmb_engine_is_panning() == 0 {
-            let pin = computePin()
-            rmb_engine_set_pin(Int32(pin.x.rounded()), Int32(pin.y.rounded()))
-        }
         rmb_engine_toggle_panning()
         pollStatus()
-    }
-
-    /// Pin point in CG global coordinates. `.center` (default) reproduces
-    /// upstream's center-of-main-display pin; window anchors are our
-    /// addition for games with hover UI at the screen center.
-    private func computePin() -> CGPoint {
-        let display = CGDisplayBounds(CGMainDisplayID())
-        let screenCenter = CGPoint(x: display.midX, y: display.midY)
-
-        if config.anchor != .center, let frame = targetFrame() {
-            let point = config.anchor.point(in: frame)
-            return CGPoint(
-                x: point.x + config.pinOffsetX,
-                y: point.y + config.pinOffsetY
-            )
-        }
-        return CGPoint(
-            x: screenCenter.x + config.pinOffsetX,
-            y: screenCenter.y + config.pinOffsetY
-        )
-    }
-
-    private func targetFrame() -> CGRect? {
-        guard let front = NSWorkspace.shared.frontmostApplication else { return nil }
-        let titles = FocusMonitor.windowTitles(of: front.processIdentifier)
-        guard FocusMonitor.matches(
-            frontName: front.localizedName,
-            bundleID: front.bundleIdentifier,
-            titles: titles,
-            target: config.targetName
-        ) else { return nil }
-        return WindowLocator.targetFrame(ownerPID: front.processIdentifier)
     }
 
     private func pollStatus() {

@@ -59,8 +59,14 @@ void UpdateMouseVisibility(double new_moved_time = 0.0) {
 
     double current_time = TotalRunningTime();
     if (current_time - g_last_mouse_moved >= default_mouse_hide_timeout) {
-        Native::GetInstance()->CursorHide(
-            Native::GetInstance()->IsMainWindowActive(Config::Current()->TARGET_NAME));
+        // Hide while panning (the pinned cursor serves no purpose) or when
+        // the target is frontmost. Upstream only checked the focus match —
+        // if matching failed it *un-hid* the cursor every 2.5s. Focus
+        // matching now falls back to AX window titles (see
+        // isMainWindowActive), and panning alone is sufficient reason.
+        bool should_hide = g_panning.load() ||
+            Native::GetInstance()->IsMainWindowActive(Config::Current()->TARGET_NAME);
+        Native::GetInstance()->CursorHide(should_hide);
         g_last_mouse_moved = current_time;
     }
 }
@@ -249,6 +255,12 @@ extern "C" void rmb_engine_toggle_panning(void) {
         }
         Native::GetInstance()->SetMousePos(g_pin_x, g_pin_y);
         g_panning = true;
+        if (Config::Current()->HIDE_MOUSE) {
+            // Hide immediately instead of waiting for the 2.5s idle timeout;
+            // the periodic re-assert keeps it hidden from here on.
+            Native::GetInstance()->CursorHide(true);
+            g_last_mouse_moved = TotalRunningTime();
+        }
     } else {
         g_panning = false;
         g_controller->ClearState();
