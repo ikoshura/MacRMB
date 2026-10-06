@@ -36,7 +36,16 @@ struct StatusView: View {
                     value: model.targetActive ? "Matched: \(model.config.targetName)" : "No match",
                     tone: model.targetActive ? .ok : .info
                 )
-                StatusRow(title: "Toggle hotkey", value: "⌥⌘P", tone: .neutral)
+                HStack {
+                    Text("Toggle hotkey")
+                        .font(.headline)
+                    Spacer()
+                    HotkeyRecorder()
+                }
+                Text("Click, then press the new combo. Needs a modifier (⌃⌥⇧⌘); Esc cancels. Conflicts fall back to the previous hotkey.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
 
             Section("Target") {

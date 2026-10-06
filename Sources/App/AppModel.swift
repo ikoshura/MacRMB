@@ -49,7 +49,10 @@ final class AppModel: ObservableObject {
         hotkeys.onToggle = { [weak self] _ in
             self?.togglePanning()
         }
-        if let registrationError = hotkeys.register() {
+        if let registrationError = hotkeys.register(
+            key: UInt32(config.hotkeyKey),
+            modifier: UInt32(config.hotkeyModifiers)
+        ) {
             error = registrationError
         }
 
@@ -158,6 +161,22 @@ final class AppModel: ObservableObject {
     }
 
     // MARK: - UI actions
+
+    /// Re-registers the global toggle hotkey; reverts on conflict.
+    /// Returns true when the new combo was accepted.
+    func setHotkey(key: UInt16, modifiers: Int) -> Bool {
+        let previous = (config.hotkeyKey, config.hotkeyModifiers)
+        hotkeys.unregister()
+        if let registrationError = hotkeys.register(key: UInt32(key), modifier: UInt32(modifiers)) {
+            // Combo taken — restore the previous hotkey and surface the error.
+            _ = hotkeys.register(key: UInt32(previous.0), modifier: UInt32(previous.1))
+            error = registrationError
+            return false
+        }
+        config.hotkeyKey = key
+        config.hotkeyModifiers = modifiers
+        return true
+    }
 
     /// Pre-fills the target from the frontmost (or last frontmost) window.
     func detectTarget() {

@@ -19,6 +19,15 @@ final class ConfigTests: XCTestCase {
         XCTAssertTrue(config.checkForUpdatesAutomatically)
         XCTAssertEqual(config.directions, .ijkl)
         XCTAssertEqual(config.bindings, [:])
+        // Default hotkey: ⌥⌘P
+        XCTAssertEqual(config.hotkeyKey, UInt16(kVK_ANSI_P))
+        XCTAssertEqual(config.hotkeyModifiers, cmdKey | optionKey)
+    }
+
+    func testHotkeyDisplayString() {
+        XCTAssertEqual(HotkeyManager.displayString(key: UInt16(kVK_ANSI_P), modifiers: cmdKey | optionKey), "⌥⌘P")
+        XCTAssertEqual(HotkeyManager.displayString(key: UInt16(kVK_ANSI_F), modifiers: controlKey), "⌃F")
+        XCTAssertEqual(HotkeyManager.displayString(key: 122, modifiers: 0), "F1") // kVK_F1
     }
 
     func testDefaultDirectionsAreJLIK() {

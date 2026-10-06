@@ -64,6 +64,10 @@ public struct Config: Codable, Equatable {
     /// Mouse button index (0 = left, 1 = right, 2 = middle) → key held while pressed.
     public var bindings: [Int: UInt16]
 
+    // Global toggle hotkey (Carbon: virtual key code + Carbon modifier mask).
+    public var hotkeyKey: UInt16
+    public var hotkeyModifiers: Int
+
     public init(
         targetName: String = "Ryujinx",
         sensitivity: Double = 10,
@@ -78,7 +82,9 @@ public struct Config: Codable, Equatable {
         persistentKeyPress: Bool = false,
         checkForUpdatesAutomatically: Bool = true,
         directions: DirectionKeys = .ijkl,
-        bindings: [Int: UInt16] = [:]
+        bindings: [Int: UInt16] = [:],
+        hotkeyKey: UInt16 = UInt16(kVK_ANSI_P),
+        hotkeyModifiers: Int = cmdKey | optionKey
     ) {
         self.targetName = targetName
         self.sensitivity = sensitivity
@@ -94,13 +100,15 @@ public struct Config: Codable, Equatable {
         self.checkForUpdatesAutomatically = checkForUpdatesAutomatically
         self.directions = directions
         self.bindings = bindings
+        self.hotkeyKey = hotkeyKey
+        self.hotkeyModifiers = hotkeyModifiers
     }
 
     private enum CodingKeys: String, CodingKey {
         case version, targetName, sensitivity, deadzone, range, threshold
         case stickOffsetX, stickOffsetY, hideCursor, autoFocus
         case bindMouseButtons, persistentKeyPress, checkForUpdatesAutomatically
-        case directions, bindings
+        case directions, bindings, hotkeyKey, hotkeyModifiers
     }
 
     /// Lenient decoding: unknown or missing fields fall back to defaults so
@@ -123,6 +131,8 @@ public struct Config: Codable, Equatable {
         checkForUpdatesAutomatically = try c.decodeIfPresent(Bool.self, forKey: .checkForUpdatesAutomatically) ?? checkForUpdatesAutomatically
         directions = try c.decodeIfPresent(DirectionKeys.self, forKey: .directions) ?? directions
         bindings = try c.decodeIfPresent([Int: UInt16].self, forKey: .bindings) ?? bindings
+        hotkeyKey = try c.decodeIfPresent(UInt16.self, forKey: .hotkeyKey) ?? hotkeyKey
+        hotkeyModifiers = try c.decodeIfPresent(Int.self, forKey: .hotkeyModifiers) ?? hotkeyModifiers
     }
 }
 

@@ -18,11 +18,11 @@ public final class HotkeyManager {
 
     public init() {}
 
-    /// Registers the hotkey. Returns `nil` on success or an `RMBError`
-    /// (`RMB-UI-001`) if registration fails — typically because another
-    /// app already owns ⌥⌘P.
+    /// Registers the global toggle hotkey. Returns `nil` on success or an
+    /// `RMBError` (`RMB-UI-001`) if registration fails — typically because
+    /// another app already owns that combo.
     @discardableResult
-    public func register() -> RMBError? {
+    public func register(key: UInt32, modifier: UInt32) -> RMBError? {
         guard eventHandlerRef == nil else { return nil }
 
         var eventType = EventTypeSpec(
@@ -61,8 +61,8 @@ public final class HotkeyManager {
 
         let hotKeyID = EventHotKeyID(signature: Self.signature, id: Hotkey.togglePanning.rawValue)
         let registerStatus = RegisterEventHotKey(
-            UInt32(kVK_ANSI_P),
-            UInt32(optionKey | cmdKey),
+            key,
+            modifier,
             hotKeyID,
             GetApplicationEventTarget(),
             0,
@@ -70,11 +70,22 @@ public final class HotkeyManager {
         )
         guard registerStatus == noErr else {
             let detail = registerStatus == eventHotKeyExistsErr
-                ? "⌥⌘P is already taken by another app"
+                ? "\(Self.displayString(key: UInt16(key), modifiers: Int(modifier))) is already taken by another app"
                 : "RegisterEventHotKey failed (\(registerStatus))"
             return RMBError(code: .uiHotkeyTaken, detail: detail)
         }
         return nil
+    }
+
+    /// Human-readable combo, e.g. "⌥⌘P" (order: ⌃ ⌥ ⇧ ⌘).
+    public static func displayString(key: UInt16, modifiers: Int) -> String {
+        var text = ""
+        if modifiers & controlKey != 0 { text += "⌃" }
+        if modifiers & optionKey != 0 { text += "⌥" }
+        if modifiers & shiftKey != 0 { text += "⇧" }
+        if modifiers & cmdKey != 0 { text += "⌘" }
+        text += KeyCodeCatalog.name(for: key)
+        return text
     }
 
     public func unregister() {
