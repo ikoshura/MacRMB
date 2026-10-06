@@ -5,6 +5,7 @@ enum Pane: String, CaseIterable, Identifiable, Hashable {
     case status
     case panning
     case bindings
+    case behavior
     case about
 
     var id: String { rawValue }
@@ -14,6 +15,7 @@ enum Pane: String, CaseIterable, Identifiable, Hashable {
         case .status: "Status"
         case .panning: "Panning"
         case .bindings: "Bindings"
+        case .behavior: "Behavior"
         case .about: "About"
         }
     }
@@ -23,6 +25,7 @@ enum Pane: String, CaseIterable, Identifiable, Hashable {
         case .status: "checklist"
         case .panning: "cursorarrow.rays"
         case .bindings: "keyboard"
+        case .behavior: "switch.2"
         case .about: "info.circle"
         }
     }
@@ -31,7 +34,7 @@ enum Pane: String, CaseIterable, Identifiable, Hashable {
 struct RootView: View {
     @Binding var pane: Pane
 
-    private static let mainPanes: [Pane] = [.status, .panning, .bindings]
+    private static let mainPanes: [Pane] = [.status, .panning, .bindings, .behavior]
 
     var body: some View {
         NavigationSplitView {
@@ -60,6 +63,7 @@ struct RootView: View {
             case .status: StatusView()
             case .panning: PanningView()
             case .bindings: BindingsView()
+            case .behavior: BehaviorView()
             case .about: AboutView()
             }
         }

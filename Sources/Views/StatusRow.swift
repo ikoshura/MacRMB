@@ -41,6 +41,9 @@ struct StatusRow: View {
     var value: String?
     var tone: StatusTone?
     var detail: String?
+    /// When false, the second line starts flush with the title
+    /// (no dot-width indent reserved).
+    var indented = true
     var secondaryAction: StatusAction?
     var action: StatusAction?
 
@@ -50,15 +53,17 @@ struct StatusRow: View {
                 Text(title)
                     .font(.headline)
 
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    if let tone {
-                        Image(systemName: tone.symbol)
-                            .font(.system(size: 8))
-                            .foregroundStyle(tone.color)
-                            .frame(width: 10)
-                            .accessibilityHidden(true)
-                    } else {
-                        Color.clear.frame(width: 10, height: 1)
+                HStack(alignment: .firstTextBaseline, spacing: indented ? 8 : 0) {
+                    if indented {
+                        if let tone {
+                            Image(systemName: tone.symbol)
+                                .font(.system(size: 8))
+                                .foregroundStyle(tone.color)
+                                .frame(width: 10)
+                                .accessibilityHidden(true)
+                        } else {
+                            Color.clear.frame(width: 10, height: 1)
+                        }
                     }
 
                     VStack(alignment: .leading, spacing: 2) {

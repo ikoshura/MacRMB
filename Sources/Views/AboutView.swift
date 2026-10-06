@@ -16,6 +16,7 @@ struct AboutView: View {
                 StatusRow(
                     title: "Updates",
                     value: updater.lastCheckResult ?? "Never checked",
+                    indented: false,
                     action: StatusAction(
                         label: updater.isChecking ? "Checking…" : "Check for Updates",
                         isProminent: true,

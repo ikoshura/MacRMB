@@ -44,8 +44,10 @@ struct MacRMBApp: App {
                 .keyboardShortcut("2", modifiers: .command)
             Button("Bindings") { pane = .bindings }
                 .keyboardShortcut("3", modifiers: .command)
-            Button("About") { pane = .about }
+            Button("Behavior") { pane = .behavior }
                 .keyboardShortcut("4", modifiers: .command)
+            Button("About") { pane = .about }
+                .keyboardShortcut("5", modifiers: .command)
 
             Divider()
 
