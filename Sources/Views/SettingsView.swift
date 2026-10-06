@@ -36,6 +36,11 @@ struct SettingsView: View {
             }
 
             Section("Mouse panning") {
+                Picker("Pin position", selection: $model.config.anchor) {
+                    ForEach(AnchorPreset.allCases, id: \.self) { preset in
+                        Text(preset.label).tag(preset)
+                    }
+                }
                 LabeledSlider(
                     title: "Deadzone", icon: "scope",
                     value: $model.config.deadzone, range: 0...60, unit: " px"
@@ -53,7 +58,18 @@ struct SettingsView: View {
                     value: $model.config.offsetY, range: -300...300, unit: " px"
                 )
                 Toggle("Invert vertical axis", isOn: $model.config.invertY)
-                Text("While panning, the cursor is pinned at the window center. Movement past the deadzone holds the arrow keys — bind them to the Right Stick in your emulator's input config.")
+                Text("While panning, the cursor is pinned at the pin position above (the X/Y offsets below fine-tune it). Movement past the deadzone holds the Right Stick keys — bind the same keys to the Right Stick in your emulator's input config.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Section("Right Stick keys") {
+                KeyPicker(title: "Up", key: $model.config.directions.up)
+                KeyPicker(title: "Down", key: $model.config.directions.down)
+                KeyPicker(title: "Left", key: $model.config.directions.left)
+                KeyPicker(title: "Right", key: $model.config.directions.right)
+                Text("These are held while panning — bind the same keys to the Right Stick in your emulator (default I/K/J/L). An RStick Button (e.g. H) can go under Mouse button bindings below.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)

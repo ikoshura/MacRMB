@@ -179,7 +179,8 @@ final class AppModel: ObservableObject {
     private func computedCenter() -> CGPoint {
         let frame = targetPID.flatMap { WindowLocator.targetFrame(ownerPID: $0) }
             ?? WindowLocator.mainDisplayFrame
-        return CGPoint(x: frame.midX + config.offsetX, y: frame.midY + config.offsetY)
+        let anchor = config.anchor.point(in: frame)
+        return CGPoint(x: anchor.x + config.offsetX, y: anchor.y + config.offsetY)
     }
 
     private func applyCursorVisibility() {

@@ -23,6 +23,11 @@ public final class PanningController {
     }
 
     public func updateConfig(_ config: Config) {
+        // Direction keys changed while some were held → release the old
+        // codes first so no key gets stuck down.
+        if config.directions != self.config.directions {
+            keys.releaseAll()
+        }
         self.config = config
     }
 

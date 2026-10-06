@@ -48,3 +48,23 @@ struct BindingRow: View {
         }
     }
 }
+
+/// Picker for a non-optional direction key (Up/Down/Left/Right).
+struct KeyPicker: View {
+    let title: String
+    @Binding var key: UInt16
+
+    var body: some View {
+        HStack {
+            Text(title)
+            Spacer()
+            Picker("", selection: $key) {
+                ForEach(KeyCodeCatalog.common, id: \.code) { item in
+                    Text(item.name).tag(item.code)
+                }
+            }
+            .labelsHidden()
+            .frame(width: 140)
+        }
+    }
+}

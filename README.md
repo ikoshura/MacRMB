@@ -7,7 +7,7 @@ While panning is active, your mouse is pinned at the emulator window's center: m
 ## Features
 
 - **⌥⌘P** global hotkey toggles panning (raw Carbon hotkey — never steals focus from the game)
-- Cursor pinned at the target window's center + X/Y offset, with deadzone, sensitivity, and invert-Y settings
+- Cursor pinned at a **configurable position** in the target window — center or any corner (avoids resting on the game's pause/exit/titlebar hover UI) — plus X/Y offsets, deadzone, sensitivity, invert-Y, and **customizable Right Stick keys (default I/K/J/L)**
 - **Hide cursor while panning** — uses the same undocumented `SetsCursorInBackground` WindowServer property + `CGDisplayHideCursor` as the MIT-licensed Raycast *Mouse Cursor Toggle* extension, so it works while the emulator is frontmost. Restored automatically on deactivate/quit (and by macOS itself if RMB crashes)
 - Mouse-button → key bindings (left/right/middle/back/forward)
 - Target tracking by window title **or** app name (window titles read via the Accessibility API — no Screen Recording permission needed), with a **Detect** button
@@ -40,7 +40,7 @@ build/Build/Products/Debug/RMB.app/Contents/MacOS/RMB --check-cursor
 ## First-time setup
 
 1. Launch RMB → the orange **Accessibility access required** banner appears → *Grant Access* → enable RMB in **System Settings → Privacy & Security → Accessibility** → *Check Again*.
-2. In your emulator, bind **Right Stick** to the **arrow keys** (and optionally ZL/ZR/buttons to keys like `Q`/`E`/`F`).
+2. In your emulator, bind **Right Stick** to **I/K/J/L** — RMB's default (change it under Settings → *Right Stick keys* if yours differ). Optionally bind ZL/ZR/buttons to keys like `Q`/`E`/`F`.
 3. In RMB, set **Target** to the emulator's window/app name (*Detect* fills it from the last focused window), and mirror any mouse-button bindings (e.g. Middle → `Q`).
 4. Press **⌥⌘P** while the emulator is focused — status turns *Panning*, the cursor hides, and mouse movement drives the camera.
 
@@ -51,17 +51,18 @@ Stored as JSON in `~/Library/Application Support/RMB/config.json`:
 ```jsonc
 {
   "targetName" : "Ryujinx",
+  "anchor" : "bottomRight", // center | topLeft | topRight | bottomLeft | bottomRight
   "deadzone" : 12,          // px (after sensitivity) before input starts
   "sensitivity" : 1,        // 0.1–3.0 delta multiplier
-  "offsetX" : 0, "offsetY" : 0,  // shifts the pin center from window center
+  "offsetX" : 0, "offsetY" : 0,  // shifts the pin point from the chosen anchor
   "invertY" : false,
   "hideCursor" : true,
-  "directions" : { "up" : 126, "down" : 125, "left" : 123, "right" : 124 }, // arrow keys
+  "directions" : { "up" : 34, "down" : 40, "left" : 38, "right" : 37 }, // I/K/J/L
   "bindings" : { "2" : 11 } // mouse button index → virtual key code (here: middle → C)
 }
 ```
 
-`directions` can be edited in the JSON to use WASD or any other keys — just bind the same keys to the stick in the emulator.
+Right-stick keys are editable in **Settings → Right Stick keys** (or in the JSON) — e.g. WASD — just bind the same keys in your emulator. Legacy configs still using the old arrow-key default are migrated to I/K/J/L automatically on first load (explicitly chosen keys are preserved).
 
 ## Error codes
 
