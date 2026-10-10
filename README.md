@@ -140,9 +140,7 @@ Three targets make up the project. `RMBCore` is a C++20 static library with the 
 
 ## Security
 
-See [SECURITY.md](SECURITY.md) for supported versions and how to report
-vulnerabilities privately. Please do not file public issues for security
-reports.
+See [SECURITY.md](SECURITY.md) for supported versions.
 
 ## License
 
@@ -157,7 +155,4 @@ Third-party components bundled with the app keep their own licenses:
 
 **Note on the vendored engine:** `Vendor/RMB/` is derived from
 [IamSanjid/RMB](https://github.com/IamSanjid/RMB), which ships with **no
-license file** — meaning all rights are reserved by its author by default and
-it is *not* open source. It is vendored here for personal/local use only.
-Do not redistribute builds containing it, and do not reuse `Vendor/RMB/`
-code in other projects, without permission from the upstream author.
+license file** — meaning all rights are reserved by its author by default.
