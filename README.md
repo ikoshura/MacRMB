@@ -6,6 +6,10 @@
 
 **Mouse panning and mouse button binding for Switch emulators on macOS.**
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![macOS 13+](https://img.shields.io/badge/macOS-13%2B-blue.svg)](#requirements)
+[![Security Policy](https://img.shields.io/badge/Security-Policy-green.svg)](SECURITY.md)
+
 Wraps the [IamSanjid/RMB](https://github.com/IamSanjid/RMB) C++ engine with a native Swift settings app.
 
 [Features](#features) · [Requirements](#requirements) · [Build](#build) · [Setup](#first-time-setup) · [Configuration](#configuration) · [Architecture](#architecture)
@@ -134,6 +138,26 @@ Three targets make up the project. `RMBCore` is a C++20 static library with the 
 - [Dhaiwat10/raycast-mouse-cursor-toggle](https://github.com/Dhaiwat10/raycast-mouse-cursor-toggle) is the reference for the background cursor-hide technique (MIT)
 - [cameron314/concurrentqueue](https://github.com/cameron314/concurrentqueue) is the lock-free queue used by the engine (MIT)
 
+## Security
+
+See [SECURITY.md](SECURITY.md) for supported versions and how to report
+vulnerabilities privately. Please do not file public issues for security
+reports.
+
 ## License
 
-MIT, see [LICENSE](LICENSE).
+The Swift app code in this repository (`Sources/`, `Tests/`, `scripts/`,
+`project.yml`, `release.sh`) is MIT — see [LICENSE](LICENSE).
+
+Third-party components bundled with the app keep their own licenses:
+
+- [Sparkle](https://github.com/sparkle-project/Sparkle) — MIT
+- [concurrentqueue](https://github.com/cameron314/concurrentqueue) (vendored engine dependency) — MIT
+- The cursor-hide technique references [raycast-mouse-cursor-toggle](https://github.com/Dhaiwat10/raycast-mouse-cursor-toggle) — MIT
+
+**Note on the vendored engine:** `Vendor/RMB/` is derived from
+[IamSanjid/RMB](https://github.com/IamSanjid/RMB), which ships with **no
+license file** — meaning all rights are reserved by its author by default and
+it is *not* open source. It is vendored here for personal/local use only.
+Do not redistribute builds containing it, and do not reuse `Vendor/RMB/`
+code in other projects, without permission from the upstream author.
